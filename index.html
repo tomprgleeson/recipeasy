@@ -597,6 +597,39 @@ h2 {
   margin: 0 0 0.75rem;
 }
 
+.meal-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.meal-grid-table th, .meal-grid-table td {
+  border: 0.5px solid rgba(0,0,0,0.12);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 90px;
+}
+.meal-grid-table th {
+  background: #f5f5f3;
+  font-weight: 600;
+  font-size: 12px;
+  color: #555;
+}
+.meal-grid-table td {
+  color: #1a1a1a;
+}
+.meal-grid-table td.empty {
+  color: #ccc;
+  font-style: italic;
+}
+.meal-grid-row-label {
+  font-weight: 600;
+  color: #777;
+  background: #fafaf8;
+  text-transform: lowercase;
+  font-size: 12px;
+}
+
 .data-bar {
   max-width: 960px;
   margin: 0 auto 1.5rem;
@@ -703,6 +736,7 @@ h2 {
     <div class="panel-hdr">
       <h2>Weekly plan</h2>
       <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" id="meal-grid-btn">Grid view</button>
         <button class="btn btn-sm" id="collapse-all-btn">Collapse all</button>
         <button class="btn btn-sm btn-primary" id="generate-btn">Build list →</button>
       </div>
@@ -776,6 +810,17 @@ h2 {
   <button class="btn btn-sm" id="import-data-btn">Import backup</button>
   <button class="btn btn-sm" id="export-data-btn">Export backup</button>
   <button class="btn btn-sm" id="logout-btn">Sign out</button>
+</div>
+
+<!-- Meal Grid Modal -->
+<div class="modal-overlay hidden" id="meal-grid-overlay">
+  <div class="modal" style="width:min(820px,96vw);">
+    <div class="modal-hdr">
+      <h3 style="margin:0;font-size:16px;">Weekly meal overview</h3>
+      <button class="btn btn-sm" id="meal-grid-close-btn">Close</button>
+    </div>
+    <div id="meal-grid-table-wrap" style="overflow-x:auto;"></div>
+  </div>
 </div>
 
 <!-- Import Recipe Modal -->
@@ -879,7 +924,8 @@ function initPlanData() {
   DAYS.forEach(day => {
     planData[day] = {};
     MEALS.forEach(meal => {
-      const defaults = { name: '', ingredients: '', servings: 2, baseServings: 2, recipeId: '' };
+      const defaultServings = meal === 'Dinner' ? 2 : 1;
+      const defaults = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeId: '' };
       planData[day][meal] = { ...defaults, ...(raw[day]?.[meal] || {}) };
     });
   });
@@ -1331,6 +1377,57 @@ function addPantryItems(raw) {
 // Events
 document.getElementById('generate-btn').addEventListener('click', buildShoppingList);
 
+document.getElementById('meal-grid-btn').addEventListener('click', () => {
+  const wrap = document.getElementById('meal-grid-table-wrap');
+  const table = document.createElement('table');
+  table.className = 'meal-grid-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  const cornerTh = document.createElement('th');
+  headRow.appendChild(cornerTh);
+  DAYS.forEach(day => {
+    const th = document.createElement('th');
+    th.textContent = day.slice(0, 3);
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  MEALS.forEach(meal => {
+    const tr = document.createElement('tr');
+    const label = document.createElement('td');
+    label.className = 'meal-grid-row-label';
+    label.textContent = meal.toLowerCase();
+    tr.appendChild(label);
+    DAYS.forEach(day => {
+      const td = document.createElement('td');
+      const name = planData[day]?.[meal]?.name?.trim();
+      if (name) {
+        td.textContent = name;
+      } else {
+        td.textContent = '—';
+        td.className = 'empty';
+      }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.innerHTML = '';
+  wrap.appendChild(table);
+  document.getElementById('meal-grid-overlay').classList.remove('hidden');
+});
+
+document.getElementById('meal-grid-close-btn').addEventListener('click', () => {
+  document.getElementById('meal-grid-overlay').classList.add('hidden');
+});
+
+document.getElementById('meal-grid-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('meal-grid-overlay')) {
+    document.getElementById('meal-grid-overlay').classList.add('hidden');
+  }
+});
+
 document.getElementById('collapse-all-btn').addEventListener('click', () => {
   const anyOpen = DAYS.some(d => !collapsed[d]);
   DAYS.forEach(d => { collapsed[d] = anyOpen; });
@@ -1594,6 +1691,7 @@ async function initApp() {
   manualItems = shopState.manual || [];
   lastPantrySkipped = shopState.pantrySkipped || 0;
 
+  DAYS.forEach(d => { if (collapsed[d] === undefined) collapsed[d] = true; });
   renderDays();
   renderRecipes();
   renderPantry();
