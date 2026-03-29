@@ -559,6 +559,58 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: min(520px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 0.5px solid rgba(0,0,0,0.12);
+}
+
+.modal-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.modal-desc {
+  font-size: 13px;
+  color: #aaa;
+  margin: 0 0 0.75rem;
+}
+
+.data-bar {
+  max-width: 960px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.data-bar-label {
+  font-size: 12px;
+  color: #bbb;
+  margin-right: auto;
+}
 </style>
 </head>
 <body>
@@ -599,6 +651,7 @@ h2 {
   <div class="panel">
     <div class="panel-hdr">
       <h2>Saved recipes</h2>
+      <button class="btn btn-sm" id="import-recipe-btn">Import recipe</button>
     </div>
     <div id="recipe-list"></div>
     <div class="new-recipe-form">
@@ -632,6 +685,55 @@ h2 {
       <button class="btn btn-sm btn-primary" id="pantry-add-btn">+ Add</button>
     </div>
     <div class="p-tags" id="pantry-tags"></div>
+  </div>
+</div>
+
+<div class="data-bar">
+  <span class="data-bar-label">Back up or restore your data</span>
+  <input type="file" id="import-file-input" accept=".json" style="display:none">
+  <button class="btn btn-sm" id="import-data-btn">Import backup</button>
+  <button class="btn btn-sm" id="export-data-btn">Export backup</button>
+</div>
+
+<!-- Import Recipe Modal -->
+<div class="modal-overlay hidden" id="import-recipe-overlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Import recipe</h2>
+      <button class="icon-btn" id="import-recipe-close" style="font-size:20px;color:#aaa;">×</button>
+    </div>
+    <div id="import-paste-step">
+      <p class="modal-desc">Paste a recipe from anywhere — a website, an app, or a note. The parser will extract the name, servings, and ingredients automatically.</p>
+      <textarea class="form-textarea" id="import-recipe-text" rows="10" placeholder="Paste recipe text here..."></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:0.75rem;">
+        <button class="btn btn-sm" id="import-recipe-cancel-btn">Cancel</button>
+        <button class="btn btn-sm btn-primary" id="import-recipe-parse-btn">Parse recipe →</button>
+      </div>
+    </div>
+    <div id="import-preview-step" style="display:none;">
+      <p class="modal-desc">Review and adjust before saving.</p>
+      <div class="form-row">
+        <div class="form-field grow">
+          <span class="form-label">Recipe name</span>
+          <input class="form-input" type="text" id="import-name" placeholder="Recipe name">
+        </div>
+        <div class="form-field">
+          <span class="form-label">Serves</span>
+          <input class="form-input narrow" type="number" id="import-serves" value="2" min="1" max="30">
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:0.75rem;">
+        <span class="form-label">Ingredients</span>
+        <textarea class="form-textarea" id="import-ingredients" rows="7"></textarea>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:8px;">
+        <button class="btn btn-sm" id="import-preview-back-btn">← Back</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" id="import-preview-cancel-btn">Cancel</button>
+          <button class="btn btn-sm btn-primary" id="import-preview-save-btn">Save recipe</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1177,6 +1279,193 @@ document.getElementById('pantry-add-btn').addEventListener('click', () => {
 });
 pantryInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('pantry-add-btn').click();
+});
+
+// ── Export / Import data ─────────────────────────────────────────────────────
+
+function exportData() {
+  const data = {
+    version: 1,
+    recipes,
+    pantry,
+    mealplan: planData,
+    shopstate: { auto: autoItems, manual: manualItems, pantrySkipped: lastPantrySkipped }
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `recipeasy-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    let data;
+    try { data = JSON.parse(e.target.result); }
+    catch { alert('Invalid file — could not parse JSON.'); return; }
+
+    if (!data.recipes || !data.pantry) {
+      alert('Invalid backup file — missing recipes or pantry data.');
+      return;
+    }
+
+    const replace = confirm(
+      'How would you like to import?\n\nOK = Replace everything with this backup\nCancel = Merge recipes & pantry only (keeps your current meal plan)'
+    );
+
+    if (replace) {
+      recipes = data.recipes || [];
+      pantry = data.pantry || [];
+      if (data.mealplan) {
+        persist('mealplan', data.mealplan);
+        initPlanData();
+        renderDays();
+      }
+      if (data.shopstate) {
+        autoItems = data.shopstate.auto || [];
+        manualItems = data.shopstate.manual || [];
+        lastPantrySkipped = data.shopstate.pantrySkipped || 0;
+      }
+    } else {
+      const existingIds = new Set(recipes.map(r => r.id));
+      (data.recipes || []).forEach(r => { if (!existingIds.has(r.id)) recipes.push(r); });
+      (data.pantry || []).forEach(item => { if (!pantry.includes(item)) pantry.push(item); });
+    }
+
+    persist('recipes', recipes);
+    persist('pantry', pantry);
+    persistShopState();
+    renderRecipes();
+    renderPantry();
+    refreshRecipeSelects();
+    if (autoItems.length + manualItems.length > 0 || lastPantrySkipped > 0) renderShoppingList();
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('export-data-btn').addEventListener('click', exportData);
+document.getElementById('import-data-btn').addEventListener('click', () => {
+  document.getElementById('import-file-input').click();
+});
+document.getElementById('import-file-input').addEventListener('change', e => {
+  if (e.target.files[0]) importData(e.target.files[0]);
+  e.target.value = '';
+});
+
+// ── Recipe text parser ───────────────────────────────────────────────────────
+
+function parseRecipeText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  let name = '';
+  let servings = 2;
+  const ingredientLines = [];
+
+  const SERVES_RES = [
+    /serves?\s+(\d+)/i,
+    /makes?\s+(\d+)/i,
+    /(\d+)\s+servings?/i,
+    /yields?\s*:?\s*(\d+)/i,
+    /for\s+(\d+)\s+(?:people|persons?)/i,
+  ];
+  const ING_HEADING = /^(ingredients?|what you'?ll? need|for the .+|shopping list)\s*:?$/i;
+  const METHOD_HEADING = /^(method|instructions?|directions?|steps?|how to(?: make)?|preparation|to make|to serve|notes?)\s*:?$/i;
+  // Lines that start with a quantity (number, fraction, unicode vulgar fractions, or "a pinch" etc.)
+  const ING_LINE = /^(\d|½|¼|¾|⅓|⅔|⅛|⅜|⅝|⅞|a\s+(?:handful|pinch|few|couple))/i;
+
+  let inIngredients = false;
+  let inMethod = false;
+  let foundName = false;
+
+  for (const line of lines) {
+    for (const re of SERVES_RES) {
+      const m = line.match(re);
+      if (m) { servings = parseInt(m[1]); break; }
+    }
+
+    if (ING_HEADING.test(line)) { inIngredients = true; inMethod = false; continue; }
+    if (METHOD_HEADING.test(line)) { inMethod = true; inIngredients = false; continue; }
+
+    if (!foundName && !inIngredients && !inMethod) {
+      if (line.length > 1 && !SERVES_RES.some(re => re.test(line))) {
+        name = line;
+        foundName = true;
+        continue;
+      }
+    }
+
+    if (inIngredients && !inMethod) {
+      ingredientLines.push(line);
+    }
+  }
+
+  // Fallback: if no ingredient heading detected, collect lines that look like ingredient entries
+  if (ingredientLines.length === 0) {
+    let passedName = false;
+    for (const line of lines) {
+      if (!passedName) { if (line === name) passedName = true; continue; }
+      if (METHOD_HEADING.test(line)) break;
+      if (ING_LINE.test(line)) ingredientLines.push(line);
+    }
+  }
+
+  return { name, servings, ingredients: ingredientLines.join('\n') };
+}
+
+// Import recipe modal
+const importOverlay = document.getElementById('import-recipe-overlay');
+const pasteStep = document.getElementById('import-paste-step');
+const previewStep = document.getElementById('import-preview-step');
+
+function openImportModal() {
+  document.getElementById('import-recipe-text').value = '';
+  pasteStep.style.display = 'block';
+  previewStep.style.display = 'none';
+  importOverlay.classList.remove('hidden');
+}
+
+function closeImportModal() {
+  importOverlay.classList.add('hidden');
+}
+
+document.getElementById('import-recipe-btn').addEventListener('click', openImportModal);
+document.getElementById('import-recipe-close').addEventListener('click', closeImportModal);
+document.getElementById('import-recipe-cancel-btn').addEventListener('click', closeImportModal);
+document.getElementById('import-preview-cancel-btn').addEventListener('click', closeImportModal);
+importOverlay.addEventListener('click', e => { if (e.target === importOverlay) closeImportModal(); });
+
+document.getElementById('import-recipe-parse-btn').addEventListener('click', () => {
+  const text = document.getElementById('import-recipe-text').value.trim();
+  if (!text) return;
+  const { name, servings, ingredients } = parseRecipeText(text);
+  document.getElementById('import-name').value = name;
+  document.getElementById('import-serves').value = servings;
+  document.getElementById('import-ingredients').value = ingredients;
+  pasteStep.style.display = 'none';
+  previewStep.style.display = 'block';
+});
+
+document.getElementById('import-preview-back-btn').addEventListener('click', () => {
+  pasteStep.style.display = 'block';
+  previewStep.style.display = 'none';
+});
+
+document.getElementById('import-preview-save-btn').addEventListener('click', () => {
+  const name = document.getElementById('import-name').value.trim();
+  const ingredients = document.getElementById('import-ingredients').value.trim();
+  if (!name || !ingredients) return;
+  recipes.push({
+    id: 'r' + Date.now(),
+    name,
+    servings: parseInt(document.getElementById('import-serves').value) || 2,
+    ingredients
+  });
+  persist('recipes', recipes);
+  renderRecipes();
+  refreshRecipeSelects();
+  closeImportModal();
 });
 
 // Init
