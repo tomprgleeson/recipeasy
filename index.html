@@ -707,6 +707,43 @@ h2 {
   margin-bottom: 0.75rem;
   min-height: 1.2em;
 }
+
+.tab-bar {
+  display: flex;
+  max-width: 960px;
+  margin: 0 auto 1.5rem;
+  border-bottom: 1px solid rgba(0,0,0,0.12);
+}
+
+.tab-btn {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  color: #999;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+  color: #1a1a1a;
+}
+
+.tab-btn.active {
+  color: #1a1a1a;
+  border-bottom-color: #1a1a1a;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
 </style>
 </head>
 <body>
@@ -731,75 +768,86 @@ h2 {
 
 <h1>Meal planner</h1>
 
-<div class="layout">
-  <div class="panel">
-    <div class="panel-hdr">
-      <h2>Weekly plan</h2>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-sm" id="meal-grid-btn">Grid view</button>
-        <button class="btn btn-sm" id="collapse-all-btn">Collapse all</button>
-        <button class="btn btn-sm btn-primary" id="generate-btn">Build list →</button>
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="tab-meal-planner">Meal Planner</button>
+  <button class="tab-btn" data-tab="tab-recipe-book">Recipe Book</button>
+</div>
+
+<div class="tab-pane active" id="tab-meal-planner">
+  <div class="layout">
+    <div class="panel">
+      <div class="panel-hdr">
+        <h2>Weekly plan</h2>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" id="meal-grid-btn">Grid view</button>
+          <button class="btn btn-sm" id="collapse-all-btn">Collapse all</button>
+          <button class="btn btn-sm" id="import-recipe-btn">Import recipe</button>
+          <button class="btn btn-sm btn-primary" id="generate-btn">Build list →</button>
+        </div>
+      </div>
+      <div id="days-container"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hdr">
+        <h2>Shopping list <span class="pill" id="item-count">0 items</span></h2>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" id="uncheck-btn">Uncheck all</button>
+          <button class="btn btn-sm" id="clear-list-btn">Clear</button>
+        </div>
+      </div>
+      <div class="shop-section" id="shopping-list">
+        <div class="empty-state">Fill in meals and click "Build list →"</div>
+      </div>
+      <div class="manual-strip">
+        <input type="text" id="manual-input" placeholder="Add item e.g. washing up liquid">
+        <button class="btn btn-sm btn-primary" id="manual-add-btn">+ Add</button>
       </div>
     </div>
-    <div id="days-container"></div>
   </div>
 
-  <div class="panel">
-    <div class="panel-hdr">
-      <h2>Shopping list <span class="pill" id="item-count">0 items</span></h2>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-sm" id="uncheck-btn">Uncheck all</button>
-        <button class="btn btn-sm" id="clear-list-btn">Clear</button>
+  <div class="layout">
+    <div class="panel" style="grid-column: 1 / -1;">
+      <div class="panel-hdr">
+        <h2>Pantry staples</h2>
       </div>
-    </div>
-    <div class="shop-section" id="shopping-list">
-      <div class="empty-state">Fill in meals and click "Build list →"</div>
-    </div>
-    <div class="manual-strip">
-      <input type="text" id="manual-input" placeholder="Add item e.g. washing up liquid">
-      <button class="btn btn-sm btn-primary" id="manual-add-btn">+ Add</button>
+      <p class="pantry-desc">Items listed here are skipped when building the shopping list.</p>
+      <div class="pantry-add-row">
+        <input type="text" id="pantry-input" placeholder="e.g. olive oil, salt, pepper">
+        <button class="btn btn-sm btn-primary" id="pantry-add-btn">+ Add</button>
+      </div>
+      <div class="p-tags" id="pantry-tags"></div>
     </div>
   </div>
 </div>
 
-<div class="layout">
-  <div class="panel">
-    <div class="panel-hdr">
-      <h2>Saved recipes</h2>
-      <button class="btn btn-sm" id="import-recipe-btn">Import recipe</button>
-    </div>
-    <div id="recipe-list"></div>
-    <div class="new-recipe-form">
-      <div class="form-row">
-        <div class="form-field grow">
-          <span class="form-label">Recipe name</span>
-          <input class="form-input" type="text" id="rf-name" placeholder="e.g. Spaghetti bolognese">
+<div class="tab-pane" id="tab-recipe-book">
+  <div class="layout">
+    <div class="panel" style="grid-column: 1 / -1;">
+      <div class="panel-hdr">
+        <h2>Saved recipes</h2>
+      </div>
+      <div id="recipe-list"></div>
+      <div class="new-recipe-form">
+        <div class="form-row">
+          <div class="form-field grow">
+            <span class="form-label">Recipe name</span>
+            <input class="form-input" type="text" id="rf-name" placeholder="e.g. Spaghetti bolognese">
+          </div>
+          <div class="form-field">
+            <span class="form-label">Serves</span>
+            <input class="form-input narrow" type="number" id="rf-serves" value="2" min="1" max="30">
+          </div>
         </div>
-        <div class="form-field">
-          <span class="form-label">Serves</span>
-          <input class="form-input narrow" type="number" id="rf-serves" value="2" min="1" max="30">
+        <div class="form-field" style="margin-bottom:0.5rem;">
+          <span class="form-label">Ingredients (one per line or semicolon-separated, with quantities)</span>
+          <textarea class="form-textarea" id="rf-ingredients" rows="3" placeholder="e.g. 400g beef mince, 2 tins chopped tomatoes, 1 onion, 2 cloves garlic"></textarea>
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="btn btn-sm btn-primary" id="rf-save-btn">Save recipe</button>
         </div>
       </div>
-      <div class="form-field" style="margin-bottom:0.5rem;">
-        <span class="form-label">Ingredients (one per line or semicolon-separated, with quantities)</span>
-        <textarea class="form-textarea" id="rf-ingredients" rows="3" placeholder="e.g. 400g beef mince, 2 tins chopped tomatoes, 1 onion, 2 cloves garlic"></textarea>
-      </div>
-      <div style="display:flex;justify-content:flex-end;">
-        <button class="btn btn-sm btn-primary" id="rf-save-btn">Save recipe</button>
-      </div>
     </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-hdr">
-      <h2>Pantry staples</h2>
-    </div>
-    <p class="pantry-desc">Items listed here are skipped when building the shopping list.</p>
-    <div class="pantry-add-row">
-      <input type="text" id="pantry-input" placeholder="e.g. olive oil, salt, pepper">
-      <button class="btn btn-sm btn-primary" id="pantry-add-btn">+ Add</button>
-    </div>
-    <div class="p-tags" id="pantry-tags"></div>
   </div>
 </div>
 
@@ -1722,6 +1770,16 @@ document.getElementById('auth-password').addEventListener('keydown', e => {
 });
 
 document.getElementById('logout-btn').addEventListener('click', () => db.auth.signOut());
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
 
 let appInitialized = false;
 db.auth.onAuthStateChange((event, session) => {
