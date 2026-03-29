@@ -611,9 +611,90 @@ h2 {
   color: #bbb;
   margin-right: auto;
 }
+
+.sync-status {
+  font-size: 12px;
+  color: #bbb;
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: #f5f5f3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.auth-overlay.hidden {
+  display: none;
+}
+
+.auth-card {
+  background: #fff;
+  border: 0.5px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+  padding: 2rem;
+  width: min(360px, 92vw);
+}
+
+.auth-card h2 {
+  margin-bottom: 1.25rem;
+}
+
+.auth-field {
+  margin-bottom: 0.75rem;
+}
+
+.auth-field label {
+  display: block;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.auth-field input {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.auth-field input:focus {
+  outline: none;
+  border-color: #333;
+}
+
+.auth-error {
+  font-size: 13px;
+  color: #c00;
+  margin-bottom: 0.75rem;
+  min-height: 1.2em;
+}
 </style>
 </head>
 <body>
+
+<div class="auth-overlay" id="auth-overlay">
+  <div class="auth-card">
+    <h2>Sign in</h2>
+    <div class="auth-field">
+      <label for="auth-email">Email</label>
+      <input type="email" id="auth-email" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label for="auth-password">Password</label>
+      <input type="password" id="auth-password" autocomplete="current-password">
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-sm btn-primary" id="auth-login-btn">Sign in</button>
+    </div>
+  </div>
+</div>
 
 <h1>Meal planner</h1>
 
@@ -690,9 +771,11 @@ h2 {
 
 <div class="data-bar">
   <span class="data-bar-label">Back up or restore your data</span>
+  <span class="sync-status" id="sync-status"></span>
   <input type="file" id="import-file-input" accept=".json" style="display:none">
   <button class="btn btn-sm" id="import-data-btn">Import backup</button>
   <button class="btn btn-sm" id="export-data-btn">Export backup</button>
+  <button class="btn btn-sm" id="logout-btn">Sign out</button>
 </div>
 
 <!-- Import Recipe Modal -->
@@ -738,6 +821,14 @@ h2 {
 </div>
 
 <script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+// ── Supabase config ───────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://snqigyinqoyvshxvffkg.supabase.co'
+const SUPABASE_ANON_KEY = 'sb_publishable_7J-P4ywWpgj-RRlH-NGeyw_rTJRysP7'
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const MEALS = ['Breakfast', 'Lunch', 'Dinner'];
 
@@ -749,13 +840,37 @@ let pantry = [];
 let collapsed = {};
 let lastPantrySkipped = 0;
 
+// Reads from localStorage (used as a local cache of the remote data)
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
   catch { return fallback; }
 }
 
+// Writes to localStorage immediately, then syncs to Supabase after a 1s debounce
+const syncTimers = {};
 function persist(key, val) {
   localStorage.setItem(key, JSON.stringify(val));
+  clearTimeout(syncTimers[key]);
+  syncTimers[key] = setTimeout(() => syncToDB(key, val), 1000);
+}
+
+function setSyncStatus(msg) {
+  const el = document.getElementById('sync-status');
+  if (el) el.textContent = msg;
+}
+
+async function syncToDB(key, val) {
+  setSyncStatus('Saving…');
+  const { error } = await db.from('app_data').upsert({ key, data: val });
+  setSyncStatus(error ? 'Sync error' : 'Saved');
+  setTimeout(() => setSyncStatus(''), 2000);
+}
+
+async function loadAllFromDB() {
+  const { data } = await db.from('app_data').select('key, data');
+  if (data) {
+    data.forEach(row => localStorage.setItem(row.key, JSON.stringify(row.data)));
+  }
 }
 
 function initPlanData() {
@@ -1468,19 +1583,59 @@ document.getElementById('import-preview-save-btn').addEventListener('click', () 
   closeImportModal();
 });
 
-// Init
-initPlanData();
-recipes = load('recipes', []);
-pantry = load('pantry', []);
-const shopState = load('shopstate', { auto: [], manual: [], pantrySkipped: 0 });
-autoItems = shopState.auto || [];
-manualItems = shopState.manual || [];
-lastPantrySkipped = shopState.pantrySkipped || 0;
+// ── App init (called once auth is confirmed) ──────────────────────────────────
+async function initApp() {
+  await loadAllFromDB();
+  initPlanData();
+  recipes = load('recipes', []);
+  pantry = load('pantry', []);
+  const shopState = load('shopstate', { auto: [], manual: [], pantrySkipped: 0 });
+  autoItems = shopState.auto || [];
+  manualItems = shopState.manual || [];
+  lastPantrySkipped = shopState.pantrySkipped || 0;
 
-renderDays();
-renderRecipes();
-renderPantry();
-if (autoItems.length + manualItems.length > 0 || lastPantrySkipped > 0) renderShoppingList();
+  renderDays();
+  renderRecipes();
+  renderPantry();
+  if (autoItems.length + manualItems.length > 0 || lastPantrySkipped > 0) renderShoppingList();
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+function showLoginScreen() {
+  document.getElementById('auth-overlay').classList.remove('hidden');
+  document.getElementById('auth-email').focus();
+}
+
+function hideLoginScreen() {
+  document.getElementById('auth-overlay').classList.add('hidden');
+}
+
+document.getElementById('auth-login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (error) errEl.textContent = error.message;
+});
+
+document.getElementById('auth-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('auth-login-btn').click();
+});
+
+document.getElementById('logout-btn').addEventListener('click', () => db.auth.signOut());
+
+let appInitialized = false;
+db.auth.onAuthStateChange((event, session) => {
+  if (session && !appInitialized) {
+    appInitialized = true;
+    hideLoginScreen();
+    initApp();
+  } else if (!session) {
+    appInitialized = false;
+    showLoginScreen();
+  }
+});
 </script>
 </body>
 </html>
