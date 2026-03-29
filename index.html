@@ -666,7 +666,7 @@ h2 {
         </div>
       </div>
       <div class="form-field" style="margin-bottom:0.5rem;">
-        <span class="form-label">Ingredients (one per line or comma-separated, with quantities)</span>
+        <span class="form-label">Ingredients (one per line or semicolon-separated, with quantities)</span>
         <textarea class="form-textarea" id="rf-ingredients" rows="3" placeholder="e.g. 400g beef mince, 2 tins chopped tomatoes, 1 onion, 2 cloves garlic"></textarea>
       </div>
       <div style="display:flex;justify-content:flex-end;">
@@ -815,7 +815,7 @@ function parseEntry(raw) {
   if (m) {
     const maybeUnit = normUnit(m[2] || '');
     if (maybeUnit) {
-      qty = evalFrac(m[1]); unit = maybeUnit; name = m[3].trim();
+      qty = evalFrac(m[1]); unit = maybeUnit; name = m[3].trim().replace(/^of\s+/i, '');
     } else {
       const m2 = s.match(re2);
       if (m2) { qty = evalFrac(m2[1]); name = m2[2].trim(); }
@@ -828,7 +828,7 @@ function parseEntry(raw) {
 }
 
 function parseIngredients(raw) {
-  return raw.split(/[\n,]+/).map(parseEntry).filter(Boolean);
+  return raw.split(/[\n;]+/).map(parseEntry).filter(Boolean);
 }
 
 function sumQtys(a, b) {
@@ -967,7 +967,7 @@ function renderDays() {
       ingRow.className = 'meal-sub';
       const hint = document.createElement('div');
       hint.className = 'ing-hint';
-      hint.textContent = 'Ingredients with quantities (one per line or comma-separated)';
+      hint.textContent = 'Ingredients with quantities (one per line or semicolon-separated)';
       const ingTa = document.createElement('textarea');
       ingTa.className = 'ing-input';
       ingTa.rows = 2;
