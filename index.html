@@ -818,7 +818,7 @@ h2 {
           <button class="btn btn-sm" id="meal-grid-btn">Grid view</button>
           <button class="btn btn-sm" id="collapse-all-btn">Collapse all</button>
           <button class="btn btn-sm" id="import-recipe-btn">Import recipe</button>
-          <button class="btn btn-sm btn-primary" id="generate-btn">Build list →</button>
+          <button class="btn btn-sm" id="clear-plan-btn">Clear all</button>
         </div>
       </div>
       <div id="days-container"></div>
@@ -828,12 +828,13 @@ h2 {
       <div class="panel-hdr">
         <h2>Shopping list <span class="pill" id="item-count">0 items</span></h2>
         <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-primary" id="generate-btn">Build list</button>
           <button class="btn btn-sm" id="uncheck-btn">Uncheck all</button>
           <button class="btn btn-sm" id="clear-list-btn">Clear</button>
         </div>
       </div>
       <div class="shop-section" id="shopping-list">
-        <div class="empty-state">Fill in meals and click "Build list →"</div>
+        <div class="empty-state">Fill in meals and click "Build list"</div>
       </div>
       <div class="manual-strip">
         <input type="text" id="manual-input" placeholder="Add item e.g. washing up liquid">
@@ -948,6 +949,48 @@ h2 {
           <button class="btn btn-sm btn-primary" id="import-preview-save-btn">Save recipe</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Recipe Confirmation Modal -->
+<div class="modal-overlay hidden" id="delete-recipe-overlay">
+  <div class="modal" style="width:min(380px,92vw);">
+    <div class="modal-hdr">
+      <h3 style="margin:0;font-size:16px;">Delete recipe</h3>
+    </div>
+    <p style="font-size:14px;color:#666;margin:0 0 1.25rem;">Delete "<span id="delete-recipe-name"></span>"? This cannot be undone.</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-sm" id="delete-recipe-cancel-btn">Cancel</button>
+      <button class="btn btn-sm btn-primary" id="delete-recipe-confirm-btn" style="background:#c00;border-color:#c00;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Recipe Modal -->
+<div class="modal-overlay hidden" id="edit-recipe-overlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Edit recipe</h2>
+      <button class="icon-btn" id="edit-recipe-close" style="font-size:20px;color:#aaa;">×</button>
+    </div>
+    <div class="form-row">
+      <div class="form-field grow">
+        <span class="form-label">Recipe name</span>
+        <input class="form-input" type="text" id="edit-recipe-name" placeholder="e.g. Spaghetti bolognese">
+      </div>
+      <div class="form-field">
+        <span class="form-label">Serves</span>
+        <input class="form-input narrow" type="number" id="edit-recipe-serves" value="2" min="1" max="30">
+      </div>
+    </div>
+    <div class="form-field" style="margin-bottom:0.75rem;">
+      <span class="form-label">Ingredients (one per line or semicolon-separated, with quantities)</span>
+      <textarea class="form-textarea" id="edit-recipe-ingredients" rows="6"></textarea>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-sm" id="edit-recipe-cancel-btn">Cancel</button>
+      <button class="btn btn-sm btn-primary" id="edit-recipe-save-btn">Save changes</button>
     </div>
   </div>
 </div>
@@ -1157,7 +1200,21 @@ function renderDays() {
     const hdr = document.createElement('div');
     hdr.className = 'day-header';
     const isCollapsed = !!collapsed[day];
-    hdr.innerHTML = `<span class="day-label">${day}</span><span class="day-toggle">${isCollapsed ? '▸' : '▾'}</span>`;
+    const dayLabel = document.createElement('span');
+    dayLabel.className = 'day-label';
+    dayLabel.textContent = day;
+    const hdrRight = document.createElement('div');
+    hdrRight.style.cssText = 'display:flex;align-items:center;gap:6px;';
+    const clearDayBtn = document.createElement('button');
+    clearDayBtn.className = 'btn btn-sm';
+    clearDayBtn.textContent = 'Clear';
+    clearDayBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
+    clearDayBtn.addEventListener('click', e => { e.stopPropagation(); clearDay(day); });
+    const toggleEl = document.createElement('span');
+    toggleEl.className = 'day-toggle';
+    toggleEl.textContent = isCollapsed ? '▸' : '▾';
+    hdrRight.append(clearDayBtn, toggleEl);
+    hdr.append(dayLabel, hdrRight);
 
     const body = document.createElement('div');
     body.className = 'day-meals';
@@ -1166,7 +1223,7 @@ function renderDays() {
     hdr.addEventListener('click', () => {
       collapsed[day] = !collapsed[day];
       body.style.display = collapsed[day] ? 'none' : 'block';
-      hdr.querySelector('.day-toggle').textContent = collapsed[day] ? '▸' : '▾';
+      toggleEl.textContent = collapsed[day] ? '▸' : '▾';
     });
 
     MEALS.forEach(meal => {
@@ -1276,6 +1333,15 @@ function renderDays() {
   });
 }
 
+function clearDay(day) {
+  MEALS.forEach(meal => {
+    const defaultServings = meal === 'Dinner' ? 2 : 1;
+    planData[day][meal] = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeId: '' };
+  });
+  persist('mealplan', planData);
+  renderDays();
+}
+
 function renderScaleBadge(el, d) {
   const scale = (d.recipeId && d.baseServings) ? d.servings / d.baseServings : 1;
   el.textContent = scale !== 1 ? `×${Math.round(scale * 100) / 100}` : '';
@@ -1327,7 +1393,7 @@ function renderShoppingList() {
   document.getElementById('item-count').textContent = `${total} item${total !== 1 ? 's' : ''}`;
 
   if (total === 0 && lastPantrySkipped === 0) {
-    el.innerHTML = '<div class="empty-state">Fill in meals and click "Build list →"</div>';
+    el.innerHTML = '<div class="empty-state">Fill in meals and click "Build list"</div>';
     return;
   }
 
@@ -1414,18 +1480,20 @@ function renderRecipes() {
     const servesEl = document.createElement('span');
     servesEl.className = 'recipe-serves';
     servesEl.textContent = `serves ${r.servings}`;
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-sm';
+    editBtn.textContent = 'Edit';
+    editBtn.style.cssText = 'font-size:11px;padding:2px 8px;';
+    editBtn.addEventListener('click', e => { e.stopPropagation(); openEditRecipeModal(r); });
     const delBtn = document.createElement('button');
     delBtn.className = 'icon-btn';
     delBtn.title = 'Delete';
     delBtn.textContent = '×';
     delBtn.addEventListener('click', e => {
       e.stopPropagation();
-      recipes = recipes.filter(x => x.id !== r.id);
-      persist('recipes', recipes);
-      renderRecipes();
-      refreshRecipeSelects();
+      openDeleteRecipeConfirm(r);
     });
-    hdr.append(nameEl, servesEl, delBtn);
+    hdr.append(nameEl, servesEl, editBtn, delBtn);
     const body = document.createElement('div');
     body.className = 'recipe-card-body';
     body.textContent = r.ingredients;
@@ -1433,6 +1501,32 @@ function renderRecipes() {
     card.append(hdr, body);
     el.appendChild(card);
   });
+}
+
+// Delete recipe confirmation
+let recipeToDelete = null;
+function openDeleteRecipeConfirm(recipe) {
+  recipeToDelete = recipe;
+  document.getElementById('delete-recipe-name').textContent = recipe.name;
+  document.getElementById('delete-recipe-overlay').classList.remove('hidden');
+}
+function closeDeleteRecipeConfirm() {
+  recipeToDelete = null;
+  document.getElementById('delete-recipe-overlay').classList.add('hidden');
+}
+
+// Edit recipe
+let recipeToEdit = null;
+function openEditRecipeModal(recipe) {
+  recipeToEdit = recipe;
+  document.getElementById('edit-recipe-name').value = recipe.name;
+  document.getElementById('edit-recipe-serves').value = recipe.servings;
+  document.getElementById('edit-recipe-ingredients').value = recipe.ingredients;
+  document.getElementById('edit-recipe-overlay').classList.remove('hidden');
+}
+function closeEditRecipeModal() {
+  recipeToEdit = null;
+  document.getElementById('edit-recipe-overlay').classList.add('hidden');
 }
 
 // Pantry
@@ -1524,6 +1618,18 @@ document.getElementById('collapse-all-btn').addEventListener('click', () => {
   renderDays();
 });
 
+document.getElementById('clear-plan-btn').addEventListener('click', () => {
+  if (!confirm('Clear all meals from the plan?')) return;
+  DAYS.forEach(day => {
+    MEALS.forEach(meal => {
+      const defaultServings = meal === 'Dinner' ? 2 : 1;
+      planData[day][meal] = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeId: '' };
+    });
+  });
+  persist('mealplan', planData);
+  renderDays();
+});
+
 document.getElementById('uncheck-btn').addEventListener('click', () => {
   autoItems.forEach(i => { i.checked = false; });
   manualItems.forEach(i => { i.checked = false; });
@@ -1571,6 +1677,40 @@ document.getElementById('rf-save-btn').addEventListener('click', () => {
 });
 document.getElementById('rf-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('rf-ingredients').focus();
+});
+
+document.getElementById('delete-recipe-cancel-btn').addEventListener('click', closeDeleteRecipeConfirm);
+document.getElementById('delete-recipe-confirm-btn').addEventListener('click', () => {
+  if (recipeToDelete) {
+    recipes = recipes.filter(x => x.id !== recipeToDelete.id);
+    persist('recipes', recipes);
+    renderRecipes();
+    refreshRecipeSelects();
+  }
+  closeDeleteRecipeConfirm();
+});
+document.getElementById('delete-recipe-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('delete-recipe-overlay')) closeDeleteRecipeConfirm();
+});
+
+document.getElementById('edit-recipe-close').addEventListener('click', closeEditRecipeModal);
+document.getElementById('edit-recipe-cancel-btn').addEventListener('click', closeEditRecipeModal);
+document.getElementById('edit-recipe-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('edit-recipe-overlay')) closeEditRecipeModal();
+});
+document.getElementById('edit-recipe-save-btn').addEventListener('click', () => {
+  if (!recipeToEdit) return;
+  const name = document.getElementById('edit-recipe-name').value.trim();
+  const ingredients = document.getElementById('edit-recipe-ingredients').value.trim();
+  if (!name || !ingredients) return;
+  const idx = recipes.findIndex(r => r.id === recipeToEdit.id);
+  if (idx !== -1) {
+    recipes[idx] = { ...recipes[idx], name, servings: parseInt(document.getElementById('edit-recipe-serves').value) || 2, ingredients };
+  }
+  persist('recipes', recipes);
+  renderRecipes();
+  refreshRecipeSelects();
+  closeEditRecipeModal();
 });
 
 const pantryInput = document.getElementById('pantry-input');
