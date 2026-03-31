@@ -1801,7 +1801,9 @@ document.getElementById('household-create-btn').addEventListener('click', async 
   if (hhErr) {
     btn.disabled = false;
     btn.textContent = 'Create a new household';
-    errEl.textContent = 'Could not create household: ' + hhErr.message;
+    errEl.textContent = hhErr.code === '42501'
+      ? 'Permission denied — check the households RLS policy in Supabase.'
+      : 'Could not create household: ' + hhErr.message;
     return;
   }
 
