@@ -1,7 +1,9 @@
 -- Recipeasy – Supabase schema setup
--- Run this once in the Supabase SQL Editor for a fresh project.
--- If upgrading from the old single-table (unscoped) schema, run the
--- "Modify app_data" block after the two CREATE TABLE statements.
+-- Safe to run on a fresh project or as a re-run on an existing one.
+-- On fresh projects, app_data is created with the correct schema from the start.
+-- On existing projects with the old unscoped schema, the migration block below
+-- detects the missing household_id column, truncates stale unscoped rows, and
+-- applies the structural changes. Subsequent re-runs are fully no-ops.
 
 -- ── 1. Households ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS households (
@@ -16,19 +18,37 @@ CREATE TABLE IF NOT EXISTS household_members (
   PRIMARY KEY (user_id, household_id)
 );
 
--- ── 3. Modify app_data (skip if setting up from scratch) ─────────────────────
--- WARNING: TRUNCATE drops all existing app_data rows.
--- Export a backup from the app before running this block.
-TRUNCATE app_data;
-ALTER TABLE app_data
-  ADD COLUMN IF NOT EXISTS household_id uuid REFERENCES households(id) ON DELETE CASCADE;
-ALTER TABLE app_data DROP CONSTRAINT IF EXISTS app_data_pkey;
-ALTER TABLE app_data ADD PRIMARY KEY (household_id, key);
-ALTER TABLE app_data ALTER COLUMN household_id SET NOT NULL;
+-- ── 3. app_data ───────────────────────────────────────────────────────────────
+-- Fresh install: create the table with the correct schema straight away.
+CREATE TABLE IF NOT EXISTS app_data (
+  household_id uuid REFERENCES households(id) ON DELETE CASCADE,
+  key          text,
+  data         jsonb,
+  PRIMARY KEY (household_id, key)
+);
+
+-- Upgrade path: only runs when household_id column is absent (i.e. the old
+-- single-key schema is in place). Truncates unscoped rows, adds the column,
+-- resets the primary key, and enforces NOT NULL. Safe to re-run — the whole
+-- block is skipped once household_id exists.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'app_data' AND column_name = 'household_id'
+  ) THEN
+    TRUNCATE app_data;
+    ALTER TABLE app_data
+      ADD COLUMN household_id uuid REFERENCES households(id) ON DELETE CASCADE;
+    ALTER TABLE app_data DROP CONSTRAINT IF EXISTS app_data_pkey;
+    ALTER TABLE app_data ADD PRIMARY KEY (household_id, key);
+    ALTER TABLE app_data ALTER COLUMN household_id SET NOT NULL;
+  END IF;
+END $$;
 
 -- ── 4. Row Level Security ─────────────────────────────────────────────────────
-ALTER TABLE app_data         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE households       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_data          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE households        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE household_members ENABLE ROW LEVEL SECURITY;
 
 -- app_data: full access for household members only
