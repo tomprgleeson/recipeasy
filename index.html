@@ -766,6 +766,41 @@ h2 {
   </div>
 </div>
 
+<!-- Household setup overlay (shown after login if no household exists) -->
+<div class="auth-overlay hidden" id="household-overlay">
+  <div class="auth-card">
+    <h2>Set up your household</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:1.25rem;">Your recipes, pantry, and meal plan are shared with everyone in your household. Create a new one, or join an existing one with a code.</p>
+    <button class="btn btn-sm btn-primary" id="household-create-btn" style="width:100%;margin-bottom:1rem;">Create a new household</button>
+    <div style="font-size:12px;color:#bbb;text-align:center;margin-bottom:1rem;">— or join an existing one —</div>
+    <div class="auth-field">
+      <label for="household-join-code">Household code</label>
+      <input type="text" id="household-join-code" placeholder="Paste code here…" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="auth-error" id="household-error"></div>
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-sm btn-primary" id="household-join-btn">Join household</button>
+    </div>
+  </div>
+</div>
+
+<!-- Household code modal (shown after creating, so you can share with partner) -->
+<div class="modal-overlay hidden" id="household-code-overlay">
+  <div class="modal" style="width:min(420px,92vw);">
+    <div class="modal-hdr">
+      <h3 style="margin:0;font-size:16px;">Household created</h3>
+    </div>
+    <p style="font-size:13px;color:#666;margin:0 0 1rem;">Share this code with your partner. They'll enter it on the "Set up your household" screen after signing in. You can also find it later via the button in the toolbar.</p>
+    <div style="display:flex;align-items:center;gap:8px;background:#f5f5f3;border-radius:8px;padding:0.75rem;margin-bottom:1.25rem;">
+      <code id="household-code-display" style="flex:1;font-size:13px;word-break:break-all;color:#444;"></code>
+      <button class="btn btn-sm" id="household-code-copy-btn">Copy</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-sm btn-primary" id="household-code-done-btn">Done</button>
+    </div>
+  </div>
+</div>
+
 <h1>Meal planner</h1>
 
 <div class="tab-bar">
@@ -860,6 +895,7 @@ h2 {
   <input type="file" id="import-file-input" accept=".json" style="display:none">
   <button class="btn btn-sm" id="import-data-btn">Import backup</button>
   <button class="btn btn-sm" id="export-data-btn">Export backup</button>
+  <button class="btn btn-sm" id="show-household-code-btn" title="View household code to share with others">Household code</button>
   <button class="btn btn-sm" id="logout-btn">Sign out</button>
 </div>
 
@@ -935,6 +971,7 @@ let recipes = [];
 let pantry = [];
 let collapsed = {};
 let lastPantrySkipped = 0;
+let householdId = null;
 
 // Reads from localStorage (used as a local cache of the remote data)
 function load(key, fallback) {
@@ -956,14 +993,16 @@ function setSyncStatus(msg) {
 }
 
 async function syncToDB(key, val) {
+  if (!householdId) return;
   setSyncStatus('Saving…');
-  const { error } = await db.from('app_data').upsert({ key, data: val });
+  const { error } = await db.from('app_data').upsert({ household_id: householdId, key, data: val });
   setSyncStatus(error ? 'Sync error' : 'Saved');
   setTimeout(() => setSyncStatus(''), 2000);
 }
 
 async function loadAllFromDB() {
-  const { data } = await db.from('app_data').select('key, data');
+  if (!householdId) return;
+  const { data } = await db.from('app_data').select('key, data').eq('household_id', householdId);
   if (data) {
     data.forEach(row => localStorage.setItem(row.key, JSON.stringify(row.data)));
   }
@@ -1731,8 +1770,107 @@ document.getElementById('import-preview-save-btn').addEventListener('click', () 
   closeImportModal();
 });
 
+// ── Household management ──────────────────────────────────────────────────────
+async function getHouseholdId() {
+  const { data } = await db.from('household_members').select('household_id').limit(1).single();
+  return data?.household_id ?? null;
+}
+
+function showHouseholdSetup() {
+  document.getElementById('household-overlay').classList.remove('hidden');
+}
+
+function hideHouseholdSetup() {
+  document.getElementById('household-overlay').classList.add('hidden');
+}
+
+function showHouseholdCodeModal(id) {
+  document.getElementById('household-code-display').textContent = id;
+  document.getElementById('household-code-overlay').classList.remove('hidden');
+}
+
+document.getElementById('household-create-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('household-create-btn');
+  const errEl = document.getElementById('household-error');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+
+  const { data: { user } } = await db.auth.getUser();
+  const { data: hh, error: hhErr } = await db.from('households').insert({}).select('id').single();
+  if (hhErr) {
+    btn.disabled = false;
+    btn.textContent = 'Create a new household';
+    errEl.textContent = 'Could not create household: ' + hhErr.message;
+    return;
+  }
+
+  const { error: memErr } = await db.from('household_members').insert({ user_id: user.id, household_id: hh.id });
+  if (memErr) {
+    btn.disabled = false;
+    btn.textContent = 'Create a new household';
+    errEl.textContent = 'Could not join household: ' + memErr.message;
+    return;
+  }
+
+  householdId = hh.id;
+  hideHouseholdSetup();
+  showHouseholdCodeModal(hh.id);
+});
+
+document.getElementById('household-join-btn').addEventListener('click', async () => {
+  const code = document.getElementById('household-join-code').value.trim();
+  const errEl = document.getElementById('household-error');
+  errEl.textContent = '';
+  if (!code) { errEl.textContent = 'Please enter a household code.'; return; }
+
+  const btn = document.getElementById('household-join-btn');
+  btn.disabled = true;
+  btn.textContent = 'Joining…';
+
+  const { data: { user } } = await db.auth.getUser();
+  const { error } = await db.from('household_members').insert({ user_id: user.id, household_id: code });
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Join household';
+    errEl.textContent = 'Invalid code or already a member.';
+    return;
+  }
+
+  householdId = code;
+  hideHouseholdSetup();
+  await initApp();
+});
+
+document.getElementById('household-join-code').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('household-join-btn').click();
+});
+
+document.getElementById('household-code-copy-btn').addEventListener('click', () => {
+  const code = document.getElementById('household-code-display').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById('household-code-copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+});
+
+document.getElementById('household-code-done-btn').addEventListener('click', async () => {
+  document.getElementById('household-code-overlay').classList.add('hidden');
+  await initApp();
+});
+
+document.getElementById('show-household-code-btn').addEventListener('click', () => {
+  if (householdId) showHouseholdCodeModal(householdId);
+});
+
 // ── App init (called once auth is confirmed) ──────────────────────────────────
 async function initApp() {
+  householdId = await getHouseholdId();
+  if (!householdId) {
+    showHouseholdSetup();
+    return;
+  }
   await loadAllFromDB();
   initPlanData();
   recipes = load('recipes', []);
@@ -1792,6 +1930,8 @@ db.auth.onAuthStateChange((event, session) => {
     initApp();
   } else if (!session) {
     appInitialized = false;
+    householdId = null;
+    ['mealplan', 'recipes', 'pantry', 'shopstate'].forEach(k => localStorage.removeItem(k));
     showLoginScreen();
   }
 });
