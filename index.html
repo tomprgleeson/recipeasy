@@ -1796,28 +1796,17 @@ document.getElementById('household-create-btn').addEventListener('click', async 
   btn.disabled = true;
   btn.textContent = 'Creating…';
 
-  const { data: { user } } = await db.auth.getUser();
-  const { data: hh, error: hhErr } = await db.from('households').insert({}).select('id').single();
-  if (hhErr) {
+  const { data: newId, error } = await db.rpc('create_household');
+  if (error) {
     btn.disabled = false;
     btn.textContent = 'Create a new household';
-    errEl.textContent = hhErr.code === '42501'
-      ? 'Permission denied — check the households RLS policy in Supabase.'
-      : 'Could not create household: ' + hhErr.message;
+    errEl.textContent = 'Could not create household: ' + error.message;
     return;
   }
 
-  const { error: memErr } = await db.from('household_members').insert({ user_id: user.id, household_id: hh.id });
-  if (memErr) {
-    btn.disabled = false;
-    btn.textContent = 'Create a new household';
-    errEl.textContent = 'Could not join household: ' + memErr.message;
-    return;
-  }
-
-  householdId = hh.id;
+  householdId = newId;
   hideHouseholdSetup();
-  showHouseholdCodeModal(hh.id);
+  showHouseholdCodeModal(newId);
 });
 
 document.getElementById('household-join-btn').addEventListener('click', async () => {

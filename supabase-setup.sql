@@ -84,8 +84,22 @@ CREATE POLICY "Members see their household" ON households FOR SELECT
     )
   );
 
--- households: any authenticated user can create a household
--- Note: auth.uid() IS NOT NULL is the reliable check; avoid auth.role().
-DROP POLICY IF EXISTS "Authenticated users can create households" ON households;
-CREATE POLICY "Authenticated users can create households" ON households FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL);
+-- ── 5. Household creation function ───────────────────────────────────────────
+-- Creates a household and immediately adds the calling user as a member in one
+-- atomic transaction. Runs as SECURITY DEFINER so it bypasses RLS on the
+-- households table — no INSERT policy on households is needed.
+CREATE OR REPLACE FUNCTION create_household()
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  new_id uuid;
+BEGIN
+  INSERT INTO households DEFAULT VALUES RETURNING id INTO new_id;
+  INSERT INTO household_members (user_id, household_id)
+    VALUES (auth.uid(), new_id);
+  RETURN new_id;
+END;
+$$;
