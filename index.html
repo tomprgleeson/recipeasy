@@ -968,7 +968,7 @@ h2 {
         </div>
       </div>
       <div class="week-start-row">
-        <label for="week-start-select">Week starts on:</label>
+        <label for="week-start-select">Start plan on:</label>
         <select id="week-start-select">
           <option value="">-- Pick a day --</option>
           <option value="Monday">Monday</option>
@@ -1374,7 +1374,7 @@ function renderDays() {
     const isCollapsed = !!collapsed[day];
     const dayLabel = document.createElement('span');
     dayLabel.className = 'day-label';
-    dayLabel.textContent = `Day ${i + 1}`;
+    dayLabel.textContent = weekStartDay ? day : `Day ${i + 1}`;
     const hdrRight = document.createElement('div');
     hdrRight.style.cssText = 'display:flex;align-items:center;gap:6px;';
     const clearDayBtn = document.createElement('button');
