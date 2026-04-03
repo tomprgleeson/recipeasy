@@ -1250,7 +1250,7 @@ const UNIT_ALIASES = {
   slice:'slice',slices:'slice',sprig:'sprig',sprigs:'sprig',
   can:'can',cans:'can',tin:'tin',tins:'tin',
   handful:'handful',handfuls:'handful',pinch:'pinch',pinches:'pinch',
-  piece:'piece',pieces:'piece',
+  piece:'piece',pieces:'piece',scoop:'scoop',scoops:'scoop',
 };
 const TO_GRAMS = { kg:1000, mg:0.001, oz:28.3495, lb:453.592 };
 const TO_ML = { l:1000 };
@@ -1336,7 +1336,7 @@ function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 function guessCategory(name) {
   const cats = {
-    'Fruit & veg': ['apple','banana','lemon','lime','orange','tomato','onion','garlic','potato','carrot','broccoli','spinach','lettuce','pepper','courgette','cucumber','mushroom','avocado','kale','celery','ginger','spring onion','sweet potato','beetroot','leek','parsley','coriander','basil','thyme','rosemary','mint','strawberr','raspberr','blueberr','grape','mango','pineapple','melon'],
+    'Fruit & veg': ['apple','banana','lemon','lime','orange','tomato','onion','garlic','potato','carrot','broccoli','spinach','lettuce','pepper','courgette','cucumber','mushroom','avocado','kale','celery','ginger','spring onion','sweet potato','beetroot','leek','parsley','coriander','basil','thyme','rosemary','mint','strawberr','raspberr','blueberr','grape','mango','pineapple','melon','cabbage','parsnip'],
     'Meat & fish': ['chicken','beef','pork','lamb','mince','bacon','sausage','steak','turkey','salmon','tuna','cod','prawn','shrimp','fish','ham'],
     'Dairy & eggs': ['milk','cheese','butter','cream','yogurt','yoghurt','egg','cheddar','mozzarella','parmesan','feta','brie'],
     'Bread & bakery': ['bread','roll','baguette','wrap','pitta','tortilla','bagel','crumpet'],
@@ -1344,7 +1344,7 @@ function guessCategory(name) {
     'Tins & jars': ['tin','can','chopped tomato','passata','coconut milk','stock','tomato paste','tomato puree','baked bean','kidney bean'],
     'Condiments & sauces': ['oil','olive oil','soy sauce','vinegar','sauce','ketchup','mustard','mayo','mayonnaise','honey','marmite','worcestershire'],
     'Spices & dried herbs': ['salt','pepper','cumin','paprika','turmeric','cinnamon','chilli','oregano','curry powder','nutmeg','cayenne','bay leaf','dried'],
-    'Frozen': ['frozen','ice cream'],
+    'Frozen': ['frozen','ice cream','ice'],
     'Drinks': ['juice','coffee','tea'],
   };
   for (const [cat, kws] of Object.entries(cats)) {
