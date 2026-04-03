@@ -1457,14 +1457,19 @@ function renderScaleBadge(el, d) {
   el.textContent = scale !== 1 ? `×${Math.round(scale * 100) / 100}` : '';
 }
 
-function combineIngredients(ingredientTexts) {
+function combineIngredients(recipeInfos, targetServings) {
+  // recipeInfos: array of { ingredients: string, servings: number }
+  // Each recipe is scaled to targetServings before combining
   const merged = {};
-  ingredientTexts.forEach(text => {
-    parseIngredients(text).forEach(ing => {
+  recipeInfos.forEach(({ ingredients, servings }) => {
+    const scale = servings > 0 ? targetServings / servings : 1;
+    parseIngredients(ingredients).forEach(ing => {
+      const scaledQty = (ing.qty != null && scale !== 1) ? ing.qty * scale : ing.qty;
+      const entry = { ...ing, qty: scaledQty };
       if (!merged[ing.name]) {
-        merged[ing.name] = { ...ing };
+        merged[ing.name] = { ...entry };
       } else {
-        merged[ing.name] = sumQtys(merged[ing.name], ing);
+        merged[ing.name] = sumQtys(merged[ing.name], entry);
       }
     });
   });
@@ -1590,20 +1595,20 @@ function createRecipeMultiSelect(day, meal, d, nameInput, servesInput, scaleBadg
       if (ingTa) ingTa.value = '';
       servesInput.value = defaultServings;
     } else {
-      const combined = combineIngredients(selected.map(r => r.ingredients));
-      const totalBaseServings = selected.reduce((sum, r) => sum + r.servings, 0);
+      const targetServings = Math.max(...selected.map(r => r.servings));
+      const combined = combineIngredients(selected.map(r => ({ ingredients: r.ingredients, servings: r.servings })), targetServings);
       const combinedName = selected.map(r => r.name).join(' + ');
       Object.assign(plan, {
         recipeIds: [...selectedIds],
         name: combinedName,
         ingredients: combined,
-        baseServings: totalBaseServings,
-        servings: totalBaseServings,
+        baseServings: targetServings,
+        servings: targetServings,
       });
       nameInput.value = combinedName;
       const ingTa = wrapper.closest('.meal-section')?.querySelector('.ing-input');
       if (ingTa) ingTa.value = combined;
-      servesInput.value = totalBaseServings;
+      servesInput.value = targetServings;
     }
     renderTrigger();
     persist('mealplan', planData);
