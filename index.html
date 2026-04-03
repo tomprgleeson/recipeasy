@@ -178,24 +178,152 @@ h2 {
   margin-bottom: 0.3rem;
 }
 
-.recipe-select {
+.recipe-ms {
+  position: relative;
+  width: 100%;
+}
+
+.recipe-ms-trigger {
   font-family: Helvetica, Arial, sans-serif;
   font-size: 16px;
   border: 0.5px solid rgba(0,0,0,0.1);
   border-radius: 6px;
-  padding: 3px 6px;
-  color: #bbb;
+  padding: 4px 28px 4px 6px;
   background: #fafaf9;
   outline: none;
   width: 100%;
+  min-height: 30px;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  position: relative;
+  user-select: none;
 }
 
-.recipe-select.has-value {
-  color: #555;
+.recipe-ms-trigger:hover {
+  border-color: rgba(0,0,0,0.25);
 }
 
-.recipe-select:focus {
+.recipe-ms-trigger.open {
   border-color: rgba(0,0,0,0.3);
+  background: #fff;
+}
+
+.recipe-ms-placeholder {
+  color: #bbb;
+  font-size: 16px;
+}
+
+.recipe-ms-arrow {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #bbb;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.recipe-ms-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #e8e8e5;
+  border-radius: 4px;
+  padding: 1px 5px 1px 6px;
+  font-size: 13px;
+  color: #333;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recipe-ms-pill-remove {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: #888;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.recipe-ms-pill-remove:hover {
+  color: #c00;
+}
+
+.recipe-ms-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 0.5px solid rgba(0,0,0,0.2);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.recipe-ms-search {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  border: none;
+  border-bottom: 0.5px solid rgba(0,0,0,0.1);
+  padding: 8px 10px;
+  width: 100%;
+  outline: none;
+  background: #fafaf9;
+  box-sizing: border-box;
+}
+
+.recipe-ms-search:focus {
+  background: #fff;
+}
+
+.recipe-ms-options {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.recipe-ms-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+}
+
+.recipe-ms-option:hover {
+  background: #f5f5f3;
+}
+
+.recipe-ms-option.selected {
+  background: #f0f0ed;
+}
+
+.recipe-ms-cb {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: #1a1a1a;
+}
+
+.recipe-ms-empty {
+  padding: 10px;
+  font-size: 13px;
+  color: #bbb;
+  text-align: center;
 }
 
 .ing-hint {
@@ -1058,8 +1186,14 @@ function initPlanData() {
     planData[day] = {};
     MEALS.forEach(meal => {
       const defaultServings = meal === 'Dinner' ? 2 : 1;
-      const defaults = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeId: '' };
-      planData[day][meal] = { ...defaults, ...(raw[day]?.[meal] || {}) };
+      const defaults = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeIds: [] };
+      const raw_meal = { ...(raw[day]?.[meal] || {}) };
+      // Migrate legacy single recipeId to recipeIds array
+      if (raw_meal.recipeId !== undefined && !raw_meal.recipeIds) {
+        raw_meal.recipeIds = raw_meal.recipeId ? [raw_meal.recipeId] : [];
+      }
+      delete raw_meal.recipeId;
+      planData[day][meal] = { ...defaults, ...raw_meal };
     });
   });
 }
@@ -1263,12 +1397,8 @@ function renderDays() {
       // Recipe picker
       const recRow = document.createElement('div');
       recRow.className = 'meal-sub';
-      const recSel = document.createElement('select');
-      recSel.className = 'recipe-select';
-      recSel.dataset.day = day;
-      recSel.dataset.meal = meal;
-      populateRecipeSelect(recSel, d.recipeId);
-      recRow.appendChild(recSel);
+      const { wrapper: msWrapper, reset: msReset } = createRecipeMultiSelect(day, meal, d, nameInput, servesInput, scaleBadge);
+      recRow.appendChild(msWrapper);
 
       // Ingredients
       const ingRow = document.createElement('div');
@@ -1295,32 +1425,11 @@ function renderDays() {
         renderScaleBadge(scaleBadge, planData[day][meal]);
       });
 
-      recSel.addEventListener('change', () => {
-        const r = recipes.find(x => x.id === recSel.value);
-        if (r) {
-          Object.assign(planData[day][meal], {
-            name: r.name, ingredients: r.ingredients,
-            baseServings: r.servings, servings: r.servings, recipeId: r.id
-          });
-          nameInput.value = r.name;
-          ingTa.value = r.ingredients;
-          servesInput.value = r.servings;
-          recSel.classList.add('has-value');
-        } else {
-          planData[day][meal].recipeId = '';
-          planData[day][meal].baseServings = planData[day][meal].servings;
-          recSel.classList.remove('has-value');
-        }
-        persist('mealplan', planData);
-        renderScaleBadge(scaleBadge, planData[day][meal]);
-      });
-
       ingTa.addEventListener('input', () => {
         planData[day][meal].ingredients = ingTa.value;
-        planData[day][meal].recipeId = '';
+        planData[day][meal].recipeIds = [];
         planData[day][meal].baseServings = planData[day][meal].servings;
-        recSel.value = '';
-        recSel.classList.remove('has-value');
+        msReset();
         persist('mealplan', planData);
         renderScaleBadge(scaleBadge, planData[day][meal]);
       });
@@ -1336,29 +1445,218 @@ function renderDays() {
 function clearDay(day) {
   MEALS.forEach(meal => {
     const defaultServings = meal === 'Dinner' ? 2 : 1;
-    planData[day][meal] = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeId: '' };
+    planData[day][meal] = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeIds: [] };
   });
   persist('mealplan', planData);
   renderDays();
 }
 
 function renderScaleBadge(el, d) {
-  const scale = (d.recipeId && d.baseServings) ? d.servings / d.baseServings : 1;
+  const hasRecipes = d.recipeIds?.length > 0;
+  const scale = (hasRecipes && d.baseServings) ? d.servings / d.baseServings : 1;
   el.textContent = scale !== 1 ? `×${Math.round(scale * 100) / 100}` : '';
 }
 
-function populateRecipeSelect(sel, currentId) {
-  sel.innerHTML = '<option value="">– from a saved recipe –</option>' +
-    recipes.map(r => `<option value="${r.id}">${r.name} (serves ${r.servings})</option>`).join('');
-  sel.value = currentId || '';
-  sel.classList.toggle('has-value', !!currentId && recipes.some(r => r.id === currentId));
+function combineIngredients(recipeInfos, targetServings) {
+  // recipeInfos: array of { ingredients: string, servings: number }
+  // Each recipe is scaled to targetServings before combining
+  const merged = {};
+  recipeInfos.forEach(({ ingredients, servings }) => {
+    const scale = servings > 0 ? targetServings / servings : 1;
+    parseIngredients(ingredients).forEach(ing => {
+      const scaledQty = (ing.qty != null && scale !== 1) ? ing.qty * scale : ing.qty;
+      const entry = { ...ing, qty: scaledQty };
+      if (!merged[ing.name]) {
+        merged[ing.name] = { ...entry };
+      } else {
+        merged[ing.name] = sumQtys(merged[ing.name], entry);
+      }
+    });
+  });
+  return Object.values(merged).map(item => {
+    let s = '';
+    if (item.qty != null) s += fmtQty(item.qty);
+    if (item.unit) s += item.unit;
+    if (s) s += ' ';
+    s += item.name;
+    if (item.extraQtys?.length) s += ' + ' + item.extraQtys.join(' + ');
+    return s;
+  }).join('\n');
+}
+
+function createRecipeMultiSelect(day, meal, d, nameInput, servesInput, scaleBadge) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'recipe-ms';
+
+  const trigger = document.createElement('div');
+  trigger.className = 'recipe-ms-trigger';
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'recipe-ms-dropdown';
+  dropdown.style.display = 'none';
+
+  const searchInput = document.createElement('input');
+  searchInput.className = 'recipe-ms-search';
+  searchInput.placeholder = 'Search recipes…';
+  searchInput.type = 'text';
+
+  const optsList = document.createElement('div');
+  optsList.className = 'recipe-ms-options';
+
+  dropdown.append(searchInput, optsList);
+  wrapper.append(trigger, dropdown);
+
+  let selectedIds = [...(d.recipeIds || [])];
+
+  function renderTrigger() {
+    trigger.innerHTML = '';
+    if (selectedIds.length === 0) {
+      const ph = document.createElement('span');
+      ph.className = 'recipe-ms-placeholder';
+      ph.textContent = '– from saved recipes –';
+      trigger.appendChild(ph);
+    } else {
+      selectedIds.forEach(id => {
+        const r = recipes.find(x => x.id === id);
+        if (!r) return;
+        const pill = document.createElement('span');
+        pill.className = 'recipe-ms-pill';
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = r.name;
+        nameSpan.style.overflow = 'hidden';
+        nameSpan.style.textOverflow = 'ellipsis';
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'recipe-ms-pill-remove';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          selectedIds = selectedIds.filter(x => x !== id);
+          onSelectionChange();
+        });
+        pill.append(nameSpan, removeBtn);
+        trigger.appendChild(pill);
+      });
+    }
+    const arrow = document.createElement('span');
+    arrow.className = 'recipe-ms-arrow';
+    arrow.textContent = '▾';
+    trigger.appendChild(arrow);
+  }
+
+  function renderOptions(filter) {
+    optsList.innerHTML = '';
+    const fl = (filter || '').toLowerCase();
+    const filtered = recipes.filter(r => !fl || r.name.toLowerCase().includes(fl));
+    if (filtered.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'recipe-ms-empty';
+      empty.textContent = recipes.length === 0 ? 'No saved recipes yet' : 'No recipes match';
+      optsList.appendChild(empty);
+      return;
+    }
+    filtered.forEach(r => {
+      const opt = document.createElement('div');
+      opt.className = 'recipe-ms-option';
+      const isSelected = selectedIds.includes(r.id);
+      if (isSelected) opt.classList.add('selected');
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = isSelected;
+      cb.className = 'recipe-ms-cb';
+      cb.tabIndex = -1;
+
+      const label = document.createElement('span');
+      label.textContent = `${r.name} (serves ${r.servings})`;
+
+      opt.append(cb, label);
+      opt.addEventListener('click', () => {
+        if (selectedIds.includes(r.id)) {
+          selectedIds = selectedIds.filter(x => x !== r.id);
+        } else {
+          selectedIds.push(r.id);
+        }
+        onSelectionChange();
+        renderOptions(searchInput.value);
+      });
+      optsList.appendChild(opt);
+    });
+  }
+
+  function onSelectionChange() {
+    const selected = selectedIds.map(id => recipes.find(r => r.id === id)).filter(Boolean);
+    const plan = planData[day][meal];
+    if (selected.length === 0) {
+      const defaultServings = meal === 'Dinner' ? 2 : 1;
+      Object.assign(plan, { recipeIds: [], name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings });
+      nameInput.value = '';
+      // ingTa is updated via the ingRow textarea which references planData - find it
+      const ingTa = wrapper.closest('.meal-section')?.querySelector('.ing-input');
+      if (ingTa) ingTa.value = '';
+      servesInput.value = defaultServings;
+    } else {
+      const targetServings = Math.max(...selected.map(r => r.servings));
+      const combined = combineIngredients(selected.map(r => ({ ingredients: r.ingredients, servings: r.servings })), targetServings);
+      const combinedName = selected.map(r => r.name).join(' + ');
+      Object.assign(plan, {
+        recipeIds: [...selectedIds],
+        name: combinedName,
+        ingredients: combined,
+        baseServings: targetServings,
+        servings: targetServings,
+      });
+      nameInput.value = combinedName;
+      const ingTa = wrapper.closest('.meal-section')?.querySelector('.ing-input');
+      if (ingTa) ingTa.value = combined;
+      servesInput.value = targetServings;
+    }
+    renderTrigger();
+    persist('mealplan', planData);
+    renderScaleBadge(scaleBadge, planData[day][meal]);
+  }
+
+  let isOpen = false;
+
+  function openDropdown() {
+    isOpen = true;
+    dropdown.style.display = 'block';
+    trigger.classList.add('open');
+    searchInput.value = '';
+    renderOptions('');
+    searchInput.focus();
+  }
+
+  function closeDropdown() {
+    isOpen = false;
+    dropdown.style.display = 'none';
+    trigger.classList.remove('open');
+  }
+
+  trigger.addEventListener('click', () => {
+    if (isOpen) closeDropdown(); else openDropdown();
+  });
+
+  searchInput.addEventListener('input', () => renderOptions(searchInput.value));
+
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeDropdown();
+  });
+
+  document.addEventListener('click', e => {
+    if (isOpen && !wrapper.contains(e.target)) closeDropdown();
+  });
+
+  function reset() {
+    selectedIds = [];
+    renderTrigger();
+  }
+
+  renderTrigger();
+  return { wrapper, reset };
 }
 
 function refreshRecipeSelects() {
-  document.querySelectorAll('.recipe-select').forEach(sel => {
-    const { day, meal } = sel.dataset;
-    populateRecipeSelect(sel, planData[day]?.[meal]?.recipeId || '');
-  });
+  renderDays();
 }
 
 // Shopping list
@@ -1369,7 +1667,8 @@ function buildShoppingList() {
     MEALS.forEach(meal => {
       const d = planData[day][meal];
       if (!d.ingredients.trim()) return;
-      const scale = (d.recipeId && d.baseServings) ? d.servings / d.baseServings : 1;
+      const hasRecipes = d.recipeIds?.length > 0;
+      const scale = (hasRecipes && d.baseServings) ? d.servings / d.baseServings : 1;
       parseIngredients(d.ingredients).forEach(ing => {
         if (isPantryItem(ing.name)) { lastPantrySkipped++; return; }
         const scaledQty = (ing.qty != null && scale !== 1) ? ing.qty * scale : ing.qty;
@@ -1623,7 +1922,7 @@ document.getElementById('clear-plan-btn').addEventListener('click', () => {
   DAYS.forEach(day => {
     MEALS.forEach(meal => {
       const defaultServings = meal === 'Dinner' ? 2 : 1;
-      planData[day][meal] = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeId: '' };
+      planData[day][meal] = { name: '', ingredients: '', servings: defaultServings, baseServings: defaultServings, recipeIds: [] };
     });
   });
   persist('mealplan', planData);
