@@ -775,6 +775,9 @@ h2 {
   text-transform: lowercase;
   font-size: 12px;
 }
+.meal-grid-row-label--day {
+  text-transform: none;
+}
 
 .data-bar {
   max-width: 960px;
@@ -1923,7 +1926,7 @@ function buildGridTable() {
   rowHeaders.forEach(row => {
     const tr = document.createElement('tr');
     const label = document.createElement('td');
-    label.className = 'meal-grid-row-label';
+    label.className = gridTransposed ? 'meal-grid-row-label meal-grid-row-label--day' : 'meal-grid-row-label';
     label.textContent = gridTransposed ? row.slice(0, 3) : row.toLowerCase();
     tr.appendChild(label);
     colHeaders.forEach(col => {
