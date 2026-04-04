@@ -1064,7 +1064,10 @@ h2 {
   <div class="modal" style="width:min(820px,96vw);">
     <div class="modal-hdr">
       <h3 style="margin:0;font-size:16px;">Weekly meal overview</h3>
-      <button class="btn btn-sm" id="meal-grid-close-btn">Close</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" id="meal-grid-transpose-btn">Transpose</button>
+        <button class="btn btn-sm" id="meal-grid-close-btn">Close</button>
+      </div>
     </div>
     <div id="meal-grid-table-wrap" style="overflow-x:auto;"></div>
   </div>
@@ -1896,35 +1899,36 @@ function addPantryItems(raw) {
 // Events
 document.getElementById('generate-btn').addEventListener('click', buildShoppingList);
 
-document.getElementById('meal-grid-btn').addEventListener('click', () => {
-  if (!weekStartDay) {
-    const wrap = document.getElementById('meal-grid-table-wrap');
-    wrap.innerHTML = '<p style="padding:1rem;color:#666;text-align:center;">Please pick a starting day for your week using the <strong>Week starts on</strong> selector above, then try again.</p>';
-    document.getElementById('meal-grid-overlay').classList.remove('hidden');
-    return;
-  }
+let gridTransposed = false;
+
+function buildGridTable() {
   const wrap = document.getElementById('meal-grid-table-wrap');
+  const orderedDays = getOrderedDays();
   const table = document.createElement('table');
   table.className = 'meal-grid-table';
   const thead = document.createElement('thead');
   const headRow = document.createElement('tr');
   const cornerTh = document.createElement('th');
   headRow.appendChild(cornerTh);
-  DAYS.forEach(day => {
+  const colHeaders = gridTransposed ? MEALS : orderedDays;
+  const rowHeaders = gridTransposed ? orderedDays : MEALS;
+  colHeaders.forEach(col => {
     const th = document.createElement('th');
-    th.textContent = day.slice(0, 3);
+    th.textContent = gridTransposed ? col.toLowerCase() : col.slice(0, 3);
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
   table.appendChild(thead);
   const tbody = document.createElement('tbody');
-  MEALS.forEach(meal => {
+  rowHeaders.forEach(row => {
     const tr = document.createElement('tr');
     const label = document.createElement('td');
     label.className = 'meal-grid-row-label';
-    label.textContent = meal.toLowerCase();
+    label.textContent = gridTransposed ? row.slice(0, 3) : row.toLowerCase();
     tr.appendChild(label);
-    DAYS.forEach(day => {
+    colHeaders.forEach(col => {
+      const day = gridTransposed ? row : col;
+      const meal = gridTransposed ? col : row;
       const td = document.createElement('td');
       const name = planData[day]?.[meal]?.name?.trim();
       if (name) {
@@ -1940,7 +1944,23 @@ document.getElementById('meal-grid-btn').addEventListener('click', () => {
   table.appendChild(tbody);
   wrap.innerHTML = '';
   wrap.appendChild(table);
+}
+
+document.getElementById('meal-grid-btn').addEventListener('click', () => {
+  const wrap = document.getElementById('meal-grid-table-wrap');
+  if (!weekStartDay) {
+    wrap.innerHTML = '<p style="padding:1rem;color:#666;text-align:center;">Please pick a starting day for your week using the <strong>Week starts on</strong> selector above, then try again.</p>';
+    document.getElementById('meal-grid-overlay').classList.remove('hidden');
+    return;
+  }
+  buildGridTable();
   document.getElementById('meal-grid-overlay').classList.remove('hidden');
+});
+
+document.getElementById('meal-grid-transpose-btn').addEventListener('click', () => {
+  if (!weekStartDay) return;
+  gridTransposed = !gridTransposed;
+  buildGridTable();
 });
 
 document.getElementById('meal-grid-close-btn').addEventListener('click', () => {
