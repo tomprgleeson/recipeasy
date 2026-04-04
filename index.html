@@ -1584,7 +1584,7 @@ function createRecipeMultiSelect(day, meal, d, nameInput, servesInput, scaleBadg
   function renderOptions(filter) {
     optsList.innerHTML = '';
     const fl = (filter || '').toLowerCase();
-    const filtered = recipes.filter(r => !fl || r.name.toLowerCase().includes(fl));
+    const filtered = recipes.filter(r => !fl || r.name.toLowerCase().includes(fl)).sort((a, b) => a.name.localeCompare(b.name));
     if (filtered.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'recipe-ms-empty';
@@ -1804,7 +1804,7 @@ function renderRecipes() {
     el.innerHTML = '<div class="empty-state" style="padding:0.75rem 0 1rem;">No saved recipes yet</div>';
     return;
   }
-  recipes.forEach(r => {
+  [...recipes].sort((a, b) => a.name.localeCompare(b.name)).forEach(r => {
     const card = document.createElement('div');
     card.className = 'recipe-card';
     const hdr = document.createElement('div');
