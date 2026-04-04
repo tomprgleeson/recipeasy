@@ -772,12 +772,7 @@ h2 {
   font-weight: 600;
   color: #777;
   background: #fafaf8;
-  text-transform: lowercase;
   font-size: 12px;
-}
-.meal-grid-row-label--day {
-  text-transform: none;
-}
 
 .data-bar {
   max-width: 960px;
@@ -1917,7 +1912,7 @@ function buildGridTable() {
   const rowHeaders = gridTransposed ? orderedDays : MEALS;
   colHeaders.forEach(col => {
     const th = document.createElement('th');
-    th.textContent = gridTransposed ? col.toLowerCase() : col.slice(0, 3);
+    th.textContent = gridTransposed ? col : col.slice(0, 3);
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -1926,8 +1921,8 @@ function buildGridTable() {
   rowHeaders.forEach(row => {
     const tr = document.createElement('tr');
     const label = document.createElement('td');
-    label.className = gridTransposed ? 'meal-grid-row-label meal-grid-row-label--day' : 'meal-grid-row-label';
-    label.textContent = gridTransposed ? row.slice(0, 3) : row.toLowerCase();
+    label.className = 'meal-grid-row-label';
+    label.textContent = gridTransposed ? row.slice(0, 3) : row;
     tr.appendChild(label);
     colHeaders.forEach(col => {
       const day = gridTransposed ? row : col;
