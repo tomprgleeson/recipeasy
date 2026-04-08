@@ -2711,7 +2711,7 @@ function getScaleFactor(qty, unit, refUnit) {
   return null;
 }
 
-// Returns { cal, protein, fat, carbs } scaled for qty+unit, or null if no entry / unit mismatch
+// Returns { cal, protein, fat, carbs, fibre } scaled for qty+unit, or null if no entry / unit mismatch
 function calcIngredientNutrients(qty, unit, name) {
   if (qty == null) return null;
   const entry = nutritionData[name];
@@ -2723,6 +2723,7 @@ function calcIngredientNutrients(qty, unit, name) {
     protein: (entry.protein > 0) ? entry.protein * scale : 0,
     fat:     (entry.fat     > 0) ? entry.fat     * scale : 0,
     carbs:   (entry.carbs   > 0) ? entry.carbs   * scale : 0,
+    fibre:   (entry.fibre   > 0) ? entry.fibre   * scale : 0,
   };
 }
 
@@ -2742,6 +2743,7 @@ function renderNutritionIngredients() {
     { key: 'protein', label: 'protein', placeholder: '0' },
     { key: 'fat',     label: 'fat',     placeholder: '0' },
     { key: 'carbs',   label: 'carbs',   placeholder: '0' },
+    { key: 'fibre',   label: 'fibre',   placeholder: '0' },
   ];
 
   // Column header
@@ -2815,7 +2817,7 @@ function renderNutritionDaily() {
       const divisor = hasRecipes ? (d.baseServings || 1) : (d.servings || 1);
       const perServingScale = 1 / divisor;
 
-      let totalCal = 0, totalProtein = 0, totalFat = 0, totalCarbs = 0;
+      let totalCal = 0, totalProtein = 0, totalFat = 0, totalCarbs = 0, totalFibre = 0;
       let partial = false;
       parseIngredients(d.ingredients).forEach(({ qty, unit, name }) => {
         if (qty == null) { partial = true; return; }
@@ -2825,6 +2827,7 @@ function renderNutritionDaily() {
         totalProtein += n.protein;
         totalFat     += n.fat;
         totalCarbs   += n.carbs;
+        totalFibre   += n.fibre;
       });
 
       return {
@@ -2833,6 +2836,7 @@ function renderNutritionDaily() {
         totalProtein: Math.round(totalProtein * 10) / 10,
         totalFat:     Math.round(totalFat     * 10) / 10,
         totalCarbs:   Math.round(totalCarbs   * 10) / 10,
+        totalFibre:   Math.round(totalFibre   * 10) / 10,
       };
     }).filter(Boolean);
 
@@ -2843,6 +2847,7 @@ function renderNutritionDaily() {
     const dayProtein = Math.round(meals.reduce((s, m) => s + m.totalProtein, 0) * 10) / 10;
     const dayFat     = Math.round(meals.reduce((s, m) => s + m.totalFat,     0) * 10) / 10;
     const dayCarbs   = Math.round(meals.reduce((s, m) => s + m.totalCarbs,   0) * 10) / 10;
+    const dayFibre   = Math.round(meals.reduce((s, m) => s + m.totalFibre,   0) * 10) / 10;
     const allPartial = meals.every(m => m.partial);
 
     const block = document.createElement('div');
@@ -2862,11 +2867,13 @@ function renderNutritionDaily() {
     total.textContent = dayTotal > 0 ? `${dayTotal.toLocaleString()} kcal` : '—';
     dayRight.appendChild(total);
 
-    const hasDayMacros = dayProtein > 0 || dayFat > 0 || dayCarbs > 0;
+    const hasDayMacros = dayProtein > 0 || dayFat > 0 || dayCarbs > 0 || dayFibre > 0;
     if (hasDayMacros) {
       const dayMacroEl = document.createElement('span');
       dayMacroEl.className = 'nutr-day-macros';
-      dayMacroEl.textContent = `${dayProtein}g P · ${dayFat}g F · ${dayCarbs}g C`;
+      let dayMacroText = `${dayProtein}g P · ${dayFat}g F · ${dayCarbs}g C`;
+      if (dayFibre > 0) dayMacroText += ` · ${dayFibre}g Fi`;
+      dayMacroEl.textContent = dayMacroText;
       dayRight.appendChild(dayMacroEl);
     }
 
@@ -2874,7 +2881,7 @@ function renderNutritionDaily() {
 
     block.appendChild(hdr);
 
-    meals.forEach(({ meal, name, totalCal, totalProtein, totalFat, totalCarbs, partial }) => {
+    meals.forEach(({ meal, name, totalCal, totalProtein, totalFat, totalCarbs, totalFibre, partial }) => {
       const row = document.createElement('div');
       row.className = 'nutr-meal-row';
 
@@ -2896,11 +2903,13 @@ function renderNutritionDaily() {
         : (partial ? 'no data' : '0 kcal');
       right.appendChild(calEl);
 
-      const hasMacros = totalProtein > 0 || totalFat > 0 || totalCarbs > 0;
+      const hasMacros = totalProtein > 0 || totalFat > 0 || totalCarbs > 0 || totalFibre > 0;
       if (hasMacros) {
         const macroEl = document.createElement('span');
         macroEl.className = 'nutr-meal-macros';
-        macroEl.textContent = `${totalProtein}g P · ${totalFat}g F · ${totalCarbs}g C`;
+        let macroText = `${totalProtein}g P · ${totalFat}g F · ${totalCarbs}g C`;
+        if (totalFibre > 0) macroText += ` · ${totalFibre}g Fi`;
+        macroEl.textContent = macroText;
         right.appendChild(macroEl);
       }
 
