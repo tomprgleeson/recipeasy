@@ -2750,7 +2750,10 @@ function collectRecipeIngredients() {
     const dominantKey = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
     const unit = dominantKey === '__none__' ? null : dominantKey;
     const variants = [...variantSets[name]].sort();
-    return { name, unit, variants, ...getRefInfo(unit) };
+    // Use the shortest variant as the display name — it's almost always the singular form
+    // without needing to synthesise a potentially incorrect normalised word.
+    const displayName = variants.reduce((a, b) => a.length <= b.length ? a : b);
+    return { name, displayName, unit, variants, ...getRefInfo(unit) };
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -2832,23 +2835,24 @@ function renderNutritionIngredients() {
   hdr.innerHTML = hdrHtml;
   list.appendChild(hdr);
 
-  ingredients.forEach(({ name, refUnit, perLabel, variants }) => {
+  ingredients.forEach(({ name, displayName, refUnit, perLabel, variants }) => {
     const group = document.createElement('div');
     group.className = 'nutr-ingredient-group';
 
     const row = document.createElement('div');
     row.className = 'nutr-ingredient-row';
 
-    // Name cell — always show a text node; add expand button if any variant differs from the group key
+    // Name cell — always show a text node; add expand button only when >=2 distinct raw names
+    // were grouped together (i.e. multiple spelling/plural variants exist).
     const nameEl = document.createElement('span');
     nameEl.className = 'nutr-ing-name';
 
     const nameText = document.createElement('span');
     nameText.className = 'nutr-ing-name-text';
-    nameText.textContent = cap(name);
+    nameText.textContent = cap(displayName);
     nameEl.appendChild(nameText);
 
-    const hasVariants = variants.some(v => v !== name);
+    const hasVariants = variants.length >= 2;
     let variantsList = null;
     if (hasVariants) {
       variantsList = document.createElement('div');
