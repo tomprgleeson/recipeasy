@@ -1505,6 +1505,23 @@ const TO_ML = { l:1000 };
 
 function normUnit(u) { return UNIT_ALIASES[u.toLowerCase()] || null; }
 
+// Normalise ingredient names to singular form so 'onion' and 'onions' are treated as the same ingredient.
+// Handles the most common English plural patterns found in recipes.
+function normalizeName(name) {
+  if (name.length < 4) return name;
+  // berries → berry, cherries → cherry
+  if (name.endsWith('ies') && name.length > 4) return name.slice(0, -3) + 'y';
+  // tomatoes → tomato, potatoes → potato
+  if (name.endsWith('oes') && name.length > 4) return name.slice(0, -2);
+  // dishes → dish, peaches → peach, boxes → box, buzzes → buzz
+  if ((name.endsWith('shes') || name.endsWith('ches') || name.endsWith('xes') || name.endsWith('zes')) && name.length > 5) return name.slice(0, -2);
+  // Leave words ending in 'ss', 'us', 'is' untouched (asparagus, hummus, couscous, anise…)
+  if (name.endsWith('ss') || name.endsWith('us') || name.endsWith('is')) return name;
+  // Simple plural: onions → onion, carrots → carrot, eggs → egg, spring onions → spring onion
+  if (name.endsWith('s') && name.length > 3) return name.slice(0, -1);
+  return name;
+}
+
 function evalFrac(s) {
   s = s.split('-')[0].trim();
   if (s.includes('/')) {
@@ -1538,7 +1555,7 @@ function parseEntry(raw) {
     const m2 = s.match(re2);
     if (m2) { qty = evalFrac(m2[1]); name = m2[2].trim(); }
   }
-  return { qty, unit, name };
+  return { qty, unit, name: normalizeName(name) };
 }
 
 function parseIngredients(raw) {
@@ -2711,10 +2728,19 @@ function getScaleFactor(qty, unit, refUnit) {
   return null;
 }
 
+// Look up a nutrition entry by name, falling back to a key that normalises to the same form.
+// This handles existing data where names may have been stored in plural form before normalisation was added.
+function getNutritionEntry(name) {
+  if (nutritionData[name]) return nutritionData[name];
+  const norm = normalizeName(name);
+  const found = Object.entries(nutritionData).find(([k]) => normalizeName(k) === norm);
+  return found ? found[1] : undefined;
+}
+
 // Returns { cal, protein, fat, carbs, fibre } scaled for qty+unit, or null if no entry / unit mismatch
 function calcIngredientNutrients(qty, unit, name) {
   if (qty == null) return null;
-  const entry = nutritionData[name];
+  const entry = getNutritionEntry(name);
   if (!entry) return null;
   const scale = getScaleFactor(qty, unit, entry.refUnit);
   if (scale == null) return null;
@@ -2764,7 +2790,7 @@ function renderNutritionIngredients() {
     nameEl.textContent = cap(name);
     nameEl.title = cap(name);
 
-    const saved = nutritionData[name];
+    const saved = getNutritionEntry(name);
     const inputs = {};
     FIELDS.forEach(f => {
       const inp = document.createElement('input');
