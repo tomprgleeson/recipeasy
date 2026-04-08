@@ -890,6 +890,201 @@ h2 {
 .tab-pane.active {
   display: block;
 }
+
+/* ── Nutrition tab ────────────────────────────────────────────────────────── */
+.nutr-sub-nav {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 1.25rem;
+  background: #f0f0ee;
+  border-radius: 8px;
+  padding: 3px;
+  width: fit-content;
+}
+
+.nutr-sub-btn {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  color: #888;
+}
+
+.nutr-sub-btn.active {
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.nutr-desc {
+  font-size: 13px;
+  color: #888;
+  margin: 0 0 1rem;
+}
+
+.nutr-col-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 6px;
+  border-bottom: 0.5px solid rgba(0,0,0,0.1);
+  margin-bottom: 2px;
+}
+
+.nutr-col-hdr-name {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.nutr-col-hdr-cal {
+  font-size: 11px;
+  font-weight: 500;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 72px;
+  text-align: right;
+}
+
+.nutr-col-hdr-per {
+  font-size: 11px;
+  font-weight: 500;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 80px;
+}
+
+.nutr-ingredient-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 0.5px solid rgba(0,0,0,0.05);
+}
+
+.nutr-ingredient-row:last-child {
+  border-bottom: none;
+}
+
+.nutr-ing-name {
+  flex: 1;
+  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nutr-cal-input {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  width: 72px;
+  border: 0.5px solid rgba(0,0,0,0.15);
+  border-radius: 6px;
+  padding: 4px 7px;
+  text-align: right;
+  outline: none;
+  color: #1a1a1a;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.nutr-cal-input:focus {
+  border-color: rgba(0,0,0,0.4);
+}
+
+.nutr-per-label {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.nutr-empty {
+  font-size: 14px;
+  color: #ccc;
+  text-align: center;
+  padding: 2.5rem 0;
+}
+
+.nutr-day-block {
+  border: 0.5px solid rgba(0,0,0,0.12);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.nutr-day-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: #f5f5f3;
+  border-bottom: 0.5px solid rgba(0,0,0,0.08);
+}
+
+.nutr-day-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nutr-day-total {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nutr-day-total.partial {
+  color: #aaa;
+}
+
+.nutr-meal-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 0.75rem;
+  border-bottom: 0.5px solid rgba(0,0,0,0.05);
+  font-size: 14px;
+}
+
+.nutr-meal-row:last-child {
+  border-bottom: none;
+}
+
+.nutr-meal-type {
+  font-size: 12px;
+  color: #bbb;
+  text-transform: capitalize;
+  width: 68px;
+  flex-shrink: 0;
+}
+
+.nutr-meal-name {
+  flex: 1;
+  color: #555;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nutr-meal-cal {
+  font-size: 14px;
+  color: #1a1a1a;
+  white-space: nowrap;
+}
+
+.nutr-meal-cal.partial {
+  color: #aaa;
+  font-style: italic;
+}
 </style>
 </head>
 <body>
@@ -953,6 +1148,7 @@ h2 {
   <button class="tab-btn active" data-tab="tab-meal-planner">Meal Planner</button>
   <button class="tab-btn" data-tab="tab-recipe-book">Recipe Book</button>
   <button class="tab-btn" data-tab="tab-pantry">Pantry</button>
+  <button class="tab-btn" data-tab="tab-nutrition">Nutrition</button>
 </div>
 
 <div class="tab-pane active" id="tab-meal-planner">
@@ -1044,6 +1240,28 @@ h2 {
         <div style="display:flex;justify-content:flex-end;">
           <button class="btn btn-sm btn-primary" id="rf-save-btn">Save recipe</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-pane" id="tab-nutrition">
+  <div class="layout">
+    <div class="panel" style="grid-column: 1 / -1;">
+      <div class="panel-hdr">
+        <h2>Nutrition</h2>
+      </div>
+      <div class="nutr-sub-nav">
+        <button class="nutr-sub-btn active" data-nutr-view="ingredients">Ingredient calories</button>
+        <button class="nutr-sub-btn" data-nutr-view="daily">Daily totals</button>
+      </div>
+      <div id="nutr-ingredients-view">
+        <p class="nutr-desc">Enter the calorie content for each ingredient used across your recipes. The most common unit for each ingredient is used — weight/volume ingredients ask per 100g or 100ml.</p>
+        <div id="nutr-ingredient-list"></div>
+      </div>
+      <div id="nutr-daily-view" style="display:none;">
+        <p class="nutr-desc">Estimated daily calories with each meal scaled to one serving. Figures in grey indicate incomplete calorie data for that meal.</p>
+        <div id="nutr-daily-list"></div>
       </div>
     </div>
   </div>
@@ -2373,6 +2591,7 @@ async function initApp() {
   initPlanData();
   recipes = load('recipes', []);
   pantry = load('pantry', []);
+  nutritionData = load('nutrition', {});
   const shopState = load('shopstate', { auto: [], manual: [], pantrySkipped: 0 });
   autoItems = shopState.auto || [];
   manualItems = shopState.manual || [];
@@ -2413,6 +2632,214 @@ document.getElementById('auth-password').addEventListener('keydown', e => {
 
 document.getElementById('logout-btn').addEventListener('click', () => db.auth.signOut());
 
+// ── Nutrition ─────────────────────────────────────────────────────────────────
+let nutritionData = {}; // { [ingredientName]: { cal: number, refUnit: string } }
+
+const WEIGHT_UNITS = new Set(['g', 'kg', 'mg', 'oz', 'lb']);
+const VOLUME_UNITS = new Set(['ml', 'l']);
+
+function getRefInfo(unit) {
+  if (unit && WEIGHT_UNITS.has(unit)) return { refUnit: 'g', perLabel: 'kcal per 100g' };
+  if (unit && VOLUME_UNITS.has(unit)) return { refUnit: 'ml', perLabel: 'kcal per 100ml' };
+  const u = unit || 'piece';
+  return { refUnit: u, perLabel: `kcal per 1 ${u}` };
+}
+
+// Collect unique ingredients from all recipes, with the most-used unit for each
+function collectRecipeIngredients() {
+  const unitFreq = {}; // { [name]: { [unit]: count } }
+  recipes.forEach(recipe => {
+    parseIngredients(recipe.ingredients).forEach(({ unit, name }) => {
+      if (!unitFreq[name]) unitFreq[name] = {};
+      const key = unit || '__none__';
+      unitFreq[name][key] = (unitFreq[name][key] || 0) + 1;
+    });
+  });
+  return Object.entries(unitFreq).map(([name, freq]) => {
+    const dominantKey = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+    const unit = dominantKey === '__none__' ? null : dominantKey;
+    return { name, unit, ...getRefInfo(unit) };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Calculate calories for a single ingredient quantity given stored nutrition entry
+function calcIngredientCal(qty, unit, name) {
+  if (qty == null) return null;
+  const entry = nutritionData[name];
+  if (!entry || !entry.cal || entry.cal <= 0) return null;
+  const { cal, refUnit } = entry;
+
+  if (WEIGHT_UNITS.has(refUnit)) {
+    const toG = { g: 1, kg: 1000, mg: 0.001, oz: 28.3495, lb: 453.592 };
+    const factor = unit ? toG[unit] : null;
+    if (factor == null) return null;
+    return (qty * factor / 100) * cal;
+  }
+
+  if (VOLUME_UNITS.has(refUnit)) {
+    const toMl = { ml: 1, l: 1000 };
+    const factor = unit ? toMl[unit] : null;
+    if (factor == null) return null;
+    return (qty * factor / 100) * cal;
+  }
+
+  // Per-unit: try simple cooking measure conversions, otherwise require exact match
+  if (unit === refUnit || (unit == null && refUnit === 'piece')) return qty * cal;
+  const toTsp = { tsp: 1, tbsp: 3, cup: 48 };
+  if (toTsp[unit] && toTsp[refUnit]) return (qty * toTsp[unit] / toTsp[refUnit]) * cal;
+  return null;
+}
+
+function renderNutritionIngredients() {
+  const list = document.getElementById('nutr-ingredient-list');
+  const ingredients = collectRecipeIngredients();
+
+  if (ingredients.length === 0) {
+    list.innerHTML = '<div class="nutr-empty">No ingredients found — add some recipes first.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+
+  // Column header
+  const hdr = document.createElement('div');
+  hdr.className = 'nutr-col-hdr';
+  hdr.innerHTML = '<span class="nutr-col-hdr-name">Ingredient</span>'
+    + '<span class="nutr-col-hdr-cal">Calories</span>'
+    + '<span class="nutr-col-hdr-per">Per</span>';
+  list.appendChild(hdr);
+
+  ingredients.forEach(({ name, refUnit, perLabel }) => {
+    const row = document.createElement('div');
+    row.className = 'nutr-ingredient-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'nutr-ing-name';
+    nameEl.textContent = cap(name);
+    nameEl.title = cap(name);
+
+    const input = document.createElement('input');
+    input.className = 'nutr-cal-input';
+    input.type = 'number';
+    input.min = '0';
+    input.step = '1';
+    input.placeholder = '0';
+    const saved = nutritionData[name];
+    if (saved && saved.cal > 0) input.value = saved.cal;
+
+    const perEl = document.createElement('span');
+    perEl.className = 'nutr-per-label';
+    perEl.textContent = perLabel;
+
+    input.addEventListener('change', () => {
+      const val = parseFloat(input.value);
+      if (!isNaN(val) && val >= 0) {
+        nutritionData[name] = { cal: val, refUnit };
+      } else {
+        delete nutritionData[name];
+      }
+      persist('nutrition', nutritionData);
+    });
+
+    row.append(nameEl, input, perEl);
+    list.appendChild(row);
+  });
+}
+
+function renderNutritionDaily() {
+  const list = document.getElementById('nutr-daily-list');
+  list.innerHTML = '';
+
+  const orderedDays = getOrderedDays();
+  let anyMeal = false;
+
+  orderedDays.forEach((day, i) => {
+    const meals = MEALS.map(meal => {
+      const d = planData[day][meal];
+      if (!d.ingredients.trim()) return null;
+
+      // Scale to 1 serving
+      const hasRecipes = d.recipeIds?.length > 0;
+      const divisor = hasRecipes ? (d.baseServings || 1) : (d.servings || 1);
+      const perServingScale = 1 / divisor;
+
+      let totalCal = 0;
+      let partial = false;
+      parseIngredients(d.ingredients).forEach(({ qty, unit, name }) => {
+        if (qty == null) { partial = true; return; }
+        const scaledQty = qty * perServingScale;
+        const cal = calcIngredientCal(scaledQty, unit, name);
+        if (cal == null) { partial = true; }
+        else { totalCal += cal; }
+      });
+
+      return { meal, name: d.name, totalCal: Math.round(totalCal), partial };
+    }).filter(Boolean);
+
+    if (meals.length === 0) return;
+    anyMeal = true;
+
+    const dayTotal = meals.reduce((s, m) => s + m.totalCal, 0);
+    const allPartial = meals.every(m => m.partial);
+
+    const block = document.createElement('div');
+    block.className = 'nutr-day-block';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'nutr-day-hdr';
+    const title = document.createElement('span');
+    title.className = 'nutr-day-title';
+    title.textContent = weekStartDay ? day : `Day ${i + 1}`;
+    const total = document.createElement('span');
+    total.className = 'nutr-day-total' + (allPartial ? ' partial' : '');
+    total.textContent = dayTotal > 0 ? `${dayTotal.toLocaleString()} kcal` : '—';
+    hdr.append(title, total);
+
+    block.appendChild(hdr);
+
+    meals.forEach(({ meal, name, totalCal, partial }) => {
+      const row = document.createElement('div');
+      row.className = 'nutr-meal-row';
+
+      const typeEl = document.createElement('span');
+      typeEl.className = 'nutr-meal-type';
+      typeEl.textContent = meal.toLowerCase();
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'nutr-meal-name';
+      nameEl.textContent = name || '—';
+
+      const calEl = document.createElement('span');
+      calEl.className = 'nutr-meal-cal' + (partial ? ' partial' : '');
+      calEl.textContent = totalCal > 0
+        ? `${totalCal.toLocaleString()} kcal${partial ? '*' : ''}`
+        : (partial ? 'no data' : '0 kcal');
+
+      row.append(typeEl, nameEl, calEl);
+      block.appendChild(row);
+    });
+
+    list.appendChild(block);
+  });
+
+  if (!anyMeal) {
+    list.innerHTML = '<div class="nutr-empty">No meals planned yet — fill in the Meal Planner first.</div>';
+  }
+}
+
+// Sub-nav switching inside Nutrition tab
+document.querySelectorAll('.nutr-sub-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nutr-sub-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const view = btn.dataset.nutrView;
+    document.getElementById('nutr-ingredients-view').style.display = view === 'ingredients' ? '' : 'none';
+    document.getElementById('nutr-daily-view').style.display = view === 'daily' ? '' : 'none';
+    if (view === 'ingredients') renderNutritionIngredients();
+    else renderNutritionDaily();
+  });
+});
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2420,6 +2847,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'tab-nutrition') renderNutritionIngredients();
   });
 });
 
@@ -2432,7 +2860,7 @@ db.auth.onAuthStateChange((event, session) => {
   } else if (!session) {
     appInitialized = false;
     householdId = null;
-    ['mealplan', 'recipes', 'pantry', 'shopstate', 'weekstartday'].forEach(k => localStorage.removeItem(k));
+    ['mealplan', 'recipes', 'pantry', 'shopstate', 'weekstartday', 'nutrition'].forEach(k => localStorage.removeItem(k));
     weekStartDay = '';
     const sel = document.getElementById('week-start-select');
     if (sel) sel.value = '';
