@@ -1555,7 +1555,7 @@ function parseEntry(raw) {
     const m2 = s.match(re2);
     if (m2) { qty = evalFrac(m2[1]); name = m2[2].trim(); }
   }
-  return { qty, unit, name: normalizeName(name) };
+  return { qty, unit, name };
 }
 
 function parseIngredients(raw) {
@@ -2689,14 +2689,17 @@ function getRefInfo(unit) {
   return { refUnit: u, perLabel: `1 ${u}` };
 }
 
-// Collect unique ingredients from all recipes, with the most-used unit for each
+// Collect unique ingredients from all recipes, with the most-used unit for each.
+// Ingredients whose names normalise to the same singular form (e.g. "onion" / "onions")
+// are grouped together under the normalised key so they share one nutrition entry.
 function collectRecipeIngredients() {
-  const unitFreq = {}; // { [name]: { [unit]: count } }
+  const unitFreq = {}; // { [normalisedName]: { [unit]: count } }
   recipes.forEach(recipe => {
     parseIngredients(recipe.ingredients).forEach(({ unit, name }) => {
-      if (!unitFreq[name]) unitFreq[name] = {};
+      const normName = normalizeName(name);
+      if (!unitFreq[normName]) unitFreq[normName] = {};
       const key = unit || '__none__';
-      unitFreq[name][key] = (unitFreq[name][key] || 0) + 1;
+      unitFreq[normName][key] = (unitFreq[normName][key] || 0) + 1;
     });
   });
   return Object.entries(unitFreq).map(([name, freq]) => {
