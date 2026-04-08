@@ -2779,8 +2779,11 @@ function getScaleFactor(qty, unit, refUnit) {
 // Look up a nutrition entry by name, falling back to a key that normalises to the same form.
 // This handles existing data where names may have been stored in plural form before normalisation was added.
 function getNutritionEntry(name) {
-  if (nutritionData[name]) return nutritionData[name];
   const norm = normalizeName(name);
+  // Always prefer the normalised key so edits in the nutrition tab take precedence
+  // over any legacy plural key that may exist from data saved before normalisation.
+  if (nutritionData[norm]) return nutritionData[norm];
+  // Fall back to any key that normalises to the same form (covers remaining legacy keys)
   const found = Object.entries(nutritionData).find(([k]) => normalizeName(k) === norm);
   return found ? found[1] : undefined;
 }
