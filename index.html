@@ -2639,10 +2639,10 @@ const WEIGHT_UNITS = new Set(['g', 'kg', 'mg', 'oz', 'lb']);
 const VOLUME_UNITS = new Set(['ml', 'l']);
 
 function getRefInfo(unit) {
-  if (unit && WEIGHT_UNITS.has(unit)) return { refUnit: 'g', perLabel: 'kcal per 100g' };
-  if (unit && VOLUME_UNITS.has(unit)) return { refUnit: 'ml', perLabel: 'kcal per 100ml' };
+  if (unit && WEIGHT_UNITS.has(unit)) return { refUnit: 'g', perLabel: '100g' };
+  if (unit && VOLUME_UNITS.has(unit)) return { refUnit: 'ml', perLabel: '100ml' };
   const u = unit || 'piece';
-  return { refUnit: u, perLabel: `kcal per 1 ${u}` };
+  return { refUnit: u, perLabel: `1 ${u}` };
 }
 
 // Collect unique ingredients from all recipes, with the most-used unit for each
