@@ -1046,6 +1046,19 @@ h2 {
   color: #aaa;
 }
 
+.nutr-day-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.nutr-day-macros {
+  font-size: 12px;
+  color: #bbb;
+  white-space: nowrap;
+}
+
 .nutr-meal-row {
   display: flex;
   align-items: flex-start;
@@ -2827,6 +2840,9 @@ function renderNutritionDaily() {
     anyMeal = true;
 
     const dayTotal = meals.reduce((s, m) => s + m.totalCal, 0);
+    const dayProtein = Math.round(meals.reduce((s, m) => s + m.totalProtein, 0) * 10) / 10;
+    const dayFat     = Math.round(meals.reduce((s, m) => s + m.totalFat,     0) * 10) / 10;
+    const dayCarbs   = Math.round(meals.reduce((s, m) => s + m.totalCarbs,   0) * 10) / 10;
     const allPartial = meals.every(m => m.partial);
 
     const block = document.createElement('div');
@@ -2837,10 +2853,24 @@ function renderNutritionDaily() {
     const title = document.createElement('span');
     title.className = 'nutr-day-title';
     title.textContent = weekStartDay ? day : `Day ${i + 1}`;
+
+    const dayRight = document.createElement('div');
+    dayRight.className = 'nutr-day-right';
+
     const total = document.createElement('span');
     total.className = 'nutr-day-total' + (allPartial ? ' partial' : '');
     total.textContent = dayTotal > 0 ? `${dayTotal.toLocaleString()} kcal` : '—';
-    hdr.append(title, total);
+    dayRight.appendChild(total);
+
+    const hasDayMacros = dayProtein > 0 || dayFat > 0 || dayCarbs > 0;
+    if (hasDayMacros) {
+      const dayMacroEl = document.createElement('span');
+      dayMacroEl.className = 'nutr-day-macros';
+      dayMacroEl.textContent = `${dayProtein}g P · ${dayFat}g F · ${dayCarbs}g C`;
+      dayRight.appendChild(dayMacroEl);
+    }
+
+    hdr.append(title, dayRight);
 
     block.appendChild(hdr);
 
