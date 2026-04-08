@@ -963,25 +963,66 @@ h2 {
   min-width: 80px;
 }
 
+.nutr-ingredient-group {
+  border-bottom: 0.5px solid rgba(0,0,0,0.05);
+}
+
+.nutr-ingredient-group:last-child {
+  border-bottom: none;
+}
+
 .nutr-ingredient-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 5px 0;
-  border-bottom: 0.5px solid rgba(0,0,0,0.05);
-}
-
-.nutr-ingredient-row:last-child {
-  border-bottom: none;
 }
 
 .nutr-ing-name {
   flex: 1;
   font-size: 14px;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.nutr-ing-name-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.nutr-variants-btn {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #aaa;
+  background: rgba(0,0,0,0.06);
+  border: none;
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: pointer;
+  line-height: 1.4;
+  font-family: inherit;
+}
+
+.nutr-variants-btn:hover {
+  background: rgba(0,0,0,0.1);
+  color: #666;
+}
+
+.nutr-variants-list {
+  display: none;
+  font-size: 11px;
+  color: #aaa;
+  padding: 0 0 6px 2px;
+  line-height: 1.6;
+}
+
+.nutr-variants-list.open {
+  display: block;
 }
 
 .nutr-cal-input {
@@ -1504,6 +1545,23 @@ const TO_GRAMS = { kg:1000, mg:0.001, oz:28.3495, lb:453.592 };
 const TO_ML = { l:1000 };
 
 function normUnit(u) { return UNIT_ALIASES[u.toLowerCase()] || null; }
+
+// Normalise ingredient names to singular form so 'onion' and 'onions' are treated as the same ingredient.
+// Handles the most common English plural patterns found in recipes.
+function normalizeName(name) {
+  if (name.length < 4) return name;
+  // berries → berry, cherries → cherry
+  if (name.endsWith('ies') && name.length > 4) return name.slice(0, -3) + 'y';
+  // tomatoes → tomato, potatoes → potato
+  if (name.endsWith('oes') && name.length > 4) return name.slice(0, -2);
+  // dishes → dish, peaches → peach, boxes → box, buzzes → buzz
+  if ((name.endsWith('shes') || name.endsWith('ches') || name.endsWith('xes') || name.endsWith('zes')) && name.length > 5) return name.slice(0, -2);
+  // Leave words ending in 'ss', 'us', 'is' untouched (asparagus, hummus, couscous, anise…)
+  if (name.endsWith('ss') || name.endsWith('us') || name.endsWith('is')) return name;
+  // Simple plural: onions → onion, carrots → carrot, eggs → egg, spring onions → spring onion
+  if (name.endsWith('s') && name.length > 3) return name.slice(0, -1);
+  return name;
+}
 
 function evalFrac(s) {
   s = s.split('-')[0].trim();
@@ -2672,20 +2730,27 @@ function getRefInfo(unit) {
   return { refUnit: u, perLabel: `1 ${u}` };
 }
 
-// Collect unique ingredients from all recipes, with the most-used unit for each
+// Collect unique ingredients from all recipes, with the most-used unit for each.
+// Ingredients whose names normalise to the same singular form (e.g. "onion" / "onions")
+// are grouped together under the normalised key so they share one nutrition entry.
+// Each result includes a `variants` array of the distinct raw names that mapped to it.
 function collectRecipeIngredients() {
-  const unitFreq = {}; // { [name]: { [unit]: count } }
+  const unitFreq = {};  // { [normalisedName]: { [unit]: count } }
+  const variantSets = {}; // { [normalisedName]: Set<rawName> }
   recipes.forEach(recipe => {
     parseIngredients(recipe.ingredients).forEach(({ unit, name }) => {
-      if (!unitFreq[name]) unitFreq[name] = {};
+      const normName = normalizeName(name);
+      if (!unitFreq[normName]) { unitFreq[normName] = {}; variantSets[normName] = new Set(); }
       const key = unit || '__none__';
-      unitFreq[name][key] = (unitFreq[name][key] || 0) + 1;
+      unitFreq[normName][key] = (unitFreq[normName][key] || 0) + 1;
+      variantSets[normName].add(name);
     });
   });
   return Object.entries(unitFreq).map(([name, freq]) => {
     const dominantKey = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
     const unit = dominantKey === '__none__' ? null : dominantKey;
-    return { name, unit, ...getRefInfo(unit) };
+    const variants = [...variantSets[name]].sort();
+    return { name, unit, variants, ...getRefInfo(unit) };
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -2711,10 +2776,22 @@ function getScaleFactor(qty, unit, refUnit) {
   return null;
 }
 
+// Look up a nutrition entry by name, falling back to a key that normalises to the same form.
+// This handles existing data where names may have been stored in plural form before normalisation was added.
+function getNutritionEntry(name) {
+  const norm = normalizeName(name);
+  // Always prefer the normalised key so edits in the nutrition tab take precedence
+  // over any legacy plural key that may exist from data saved before normalisation.
+  if (nutritionData[norm]) return nutritionData[norm];
+  // Fall back to any key that normalises to the same form (covers remaining legacy keys)
+  const found = Object.entries(nutritionData).find(([k]) => normalizeName(k) === norm);
+  return found ? found[1] : undefined;
+}
+
 // Returns { cal, protein, fat, carbs, fibre } scaled for qty+unit, or null if no entry / unit mismatch
 function calcIngredientNutrients(qty, unit, name) {
   if (qty == null) return null;
-  const entry = nutritionData[name];
+  const entry = getNutritionEntry(name);
   if (!entry) return null;
   const scale = getScaleFactor(qty, unit, entry.refUnit);
   if (scale == null) return null;
@@ -2755,16 +2832,41 @@ function renderNutritionIngredients() {
   hdr.innerHTML = hdrHtml;
   list.appendChild(hdr);
 
-  ingredients.forEach(({ name, refUnit, perLabel }) => {
+  ingredients.forEach(({ name, refUnit, perLabel, variants }) => {
+    const group = document.createElement('div');
+    group.className = 'nutr-ingredient-group';
+
     const row = document.createElement('div');
     row.className = 'nutr-ingredient-row';
 
+    // Name cell — always show a text node; add expand button if any variant differs from the group key
     const nameEl = document.createElement('span');
     nameEl.className = 'nutr-ing-name';
-    nameEl.textContent = cap(name);
-    nameEl.title = cap(name);
 
-    const saved = nutritionData[name];
+    const nameText = document.createElement('span');
+    nameText.className = 'nutr-ing-name-text';
+    nameText.textContent = cap(name);
+    nameEl.appendChild(nameText);
+
+    const hasVariants = variants.some(v => v !== name);
+    let variantsList = null;
+    if (hasVariants) {
+      variantsList = document.createElement('div');
+      variantsList.className = 'nutr-variants-list';
+      variantsList.textContent = 'Groups: ' + variants.join(' · ');
+
+      const btn = document.createElement('button');
+      btn.className = 'nutr-variants-btn';
+      btn.textContent = '▸';
+      btn.title = 'Show grouped ingredient names';
+      btn.addEventListener('click', () => {
+        const open = variantsList.classList.toggle('open');
+        btn.textContent = open ? '▾' : '▸';
+      });
+      nameEl.appendChild(btn);
+    }
+
+    const saved = getNutritionEntry(name);
     const inputs = {};
     FIELDS.forEach(f => {
       const inp = document.createElement('input');
@@ -2796,7 +2898,9 @@ function renderNutritionIngredients() {
     FIELDS.forEach(f => inputs[f.key].addEventListener('change', save));
 
     row.append(nameEl, ...FIELDS.map(f => inputs[f.key]), perEl);
-    list.appendChild(row);
+    group.appendChild(row);
+    if (variantsList) group.appendChild(variantsList);
+    list.appendChild(group);
   });
 }
 
