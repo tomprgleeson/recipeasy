@@ -950,7 +950,7 @@ h2 {
   color: #bbb;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  width: 72px;
+  width: 64px;
   text-align: right;
 }
 
@@ -987,7 +987,7 @@ h2 {
 .nutr-cal-input {
   font-family: Helvetica, Arial, sans-serif;
   font-size: 14px;
-  width: 72px;
+  width: 64px;
   border: 0.5px solid rgba(0,0,0,0.15);
   border-radius: 6px;
   padding: 4px 7px;
@@ -1048,7 +1048,7 @@ h2 {
 
 .nutr-meal-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 8px;
   padding: 7px 0.75rem;
   border-bottom: 0.5px solid rgba(0,0,0,0.05);
@@ -1057,6 +1057,20 @@ h2 {
 
 .nutr-meal-row:last-child {
   border-bottom: none;
+}
+
+.nutr-meal-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.nutr-meal-macros {
+  font-size: 12px;
+  color: #bbb;
+  white-space: nowrap;
 }
 
 .nutr-meal-type {
@@ -2633,16 +2647,16 @@ document.getElementById('auth-password').addEventListener('keydown', e => {
 document.getElementById('logout-btn').addEventListener('click', () => db.auth.signOut());
 
 // ── Nutrition ─────────────────────────────────────────────────────────────────
-let nutritionData = {}; // { [ingredientName]: { cal: number, refUnit: string } }
+let nutritionData = {}; // { [ingredientName]: { cal, protein, fat, carbs: number, refUnit: string } }
 
 const WEIGHT_UNITS = new Set(['g', 'kg', 'mg', 'oz', 'lb']);
 const VOLUME_UNITS = new Set(['ml', 'l']);
 
 function getRefInfo(unit) {
-  if (unit && WEIGHT_UNITS.has(unit)) return { refUnit: 'g', perLabel: 'kcal per 100g' };
-  if (unit && VOLUME_UNITS.has(unit)) return { refUnit: 'ml', perLabel: 'kcal per 100ml' };
+  if (unit && WEIGHT_UNITS.has(unit)) return { refUnit: 'g', perLabel: '100g' };
+  if (unit && VOLUME_UNITS.has(unit)) return { refUnit: 'ml', perLabel: '100ml' };
   const u = unit || 'piece';
-  return { refUnit: u, perLabel: `kcal per 1 ${u}` };
+  return { refUnit: u, perLabel: `1 ${u}` };
 }
 
 // Collect unique ingredients from all recipes, with the most-used unit for each
@@ -2662,32 +2676,41 @@ function collectRecipeIngredients() {
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Calculate calories for a single ingredient quantity given stored nutrition entry
-function calcIngredientCal(qty, unit, name) {
+// Returns a scale factor to convert qty+unit into "per-reference-unit multiples"
+// e.g. 200g with refUnit g → 2 (= 200/100), 1 tbsp with refUnit tsp → 3
+// Returns null if the unit can't be mapped to refUnit
+function getScaleFactor(qty, unit, refUnit) {
   if (qty == null) return null;
-  const entry = nutritionData[name];
-  if (!entry || !entry.cal || entry.cal <= 0) return null;
-  const { cal, refUnit } = entry;
-
   if (WEIGHT_UNITS.has(refUnit)) {
     const toG = { g: 1, kg: 1000, mg: 0.001, oz: 28.3495, lb: 453.592 };
-    const factor = unit ? toG[unit] : null;
-    if (factor == null) return null;
-    return (qty * factor / 100) * cal;
+    const f = unit ? toG[unit] : null;
+    return f != null ? qty * f / 100 : null;
   }
-
   if (VOLUME_UNITS.has(refUnit)) {
     const toMl = { ml: 1, l: 1000 };
-    const factor = unit ? toMl[unit] : null;
-    if (factor == null) return null;
-    return (qty * factor / 100) * cal;
+    const f = unit ? toMl[unit] : null;
+    return f != null ? qty * f / 100 : null;
   }
-
-  // Per-unit: try simple cooking measure conversions, otherwise require exact match
-  if (unit === refUnit || (unit == null && refUnit === 'piece')) return qty * cal;
+  // Per-unit: accept exact match or simple cooking measure conversion
+  if (unit === refUnit || (unit == null && refUnit === 'piece')) return qty;
   const toTsp = { tsp: 1, tbsp: 3, cup: 48 };
-  if (toTsp[unit] && toTsp[refUnit]) return (qty * toTsp[unit] / toTsp[refUnit]) * cal;
+  if (toTsp[unit] && toTsp[refUnit]) return qty * toTsp[unit] / toTsp[refUnit];
   return null;
+}
+
+// Returns { cal, protein, fat, carbs } scaled for qty+unit, or null if no entry / unit mismatch
+function calcIngredientNutrients(qty, unit, name) {
+  if (qty == null) return null;
+  const entry = nutritionData[name];
+  if (!entry) return null;
+  const scale = getScaleFactor(qty, unit, entry.refUnit);
+  if (scale == null) return null;
+  return {
+    cal:     (entry.cal     > 0) ? entry.cal     * scale : 0,
+    protein: (entry.protein > 0) ? entry.protein * scale : 0,
+    fat:     (entry.fat     > 0) ? entry.fat     * scale : 0,
+    carbs:   (entry.carbs   > 0) ? entry.carbs   * scale : 0,
+  };
 }
 
 function renderNutritionIngredients() {
@@ -2701,12 +2724,20 @@ function renderNutritionIngredients() {
 
   list.innerHTML = '';
 
+  const FIELDS = [
+    { key: 'cal',     label: 'kcal',    placeholder: '0' },
+    { key: 'protein', label: 'protein', placeholder: '0' },
+    { key: 'fat',     label: 'fat',     placeholder: '0' },
+    { key: 'carbs',   label: 'carbs',   placeholder: '0' },
+  ];
+
   // Column header
   const hdr = document.createElement('div');
   hdr.className = 'nutr-col-hdr';
-  hdr.innerHTML = '<span class="nutr-col-hdr-name">Ingredient</span>'
-    + '<span class="nutr-col-hdr-cal">Calories</span>'
-    + '<span class="nutr-col-hdr-per">Per</span>';
+  let hdrHtml = '<span class="nutr-col-hdr-name">Ingredient</span>';
+  FIELDS.forEach(f => { hdrHtml += `<span class="nutr-col-hdr-cal">${f.label}</span>`; });
+  hdrHtml += '<span class="nutr-col-hdr-per">Per</span>';
+  hdr.innerHTML = hdrHtml;
   list.appendChild(hdr);
 
   ingredients.forEach(({ name, refUnit, perLabel }) => {
@@ -2718,30 +2749,38 @@ function renderNutritionIngredients() {
     nameEl.textContent = cap(name);
     nameEl.title = cap(name);
 
-    const input = document.createElement('input');
-    input.className = 'nutr-cal-input';
-    input.type = 'number';
-    input.min = '0';
-    input.step = '1';
-    input.placeholder = '0';
     const saved = nutritionData[name];
-    if (saved && saved.cal > 0) input.value = saved.cal;
+    const inputs = {};
+    FIELDS.forEach(f => {
+      const inp = document.createElement('input');
+      inp.className = 'nutr-cal-input';
+      inp.type = 'number';
+      inp.min = '0';
+      inp.step = f.key === 'cal' ? '1' : '0.1';
+      inp.placeholder = f.placeholder;
+      if (saved && saved[f.key] > 0) inp.value = saved[f.key];
+      inputs[f.key] = inp;
+    });
 
     const perEl = document.createElement('span');
     perEl.className = 'nutr-per-label';
     perEl.textContent = perLabel;
 
-    input.addEventListener('change', () => {
-      const val = parseFloat(input.value);
-      if (!isNaN(val) && val >= 0) {
-        nutritionData[name] = { cal: val, refUnit };
-      } else {
-        delete nutritionData[name];
-      }
+    const save = () => {
+      const entry = { refUnit };
+      let hasAny = false;
+      FIELDS.forEach(f => {
+        const v = parseFloat(inputs[f.key].value);
+        if (!isNaN(v) && v >= 0) { entry[f.key] = v; hasAny = true; }
+      });
+      if (hasAny) { nutritionData[name] = entry; }
+      else { delete nutritionData[name]; }
       persist('nutrition', nutritionData);
-    });
+    };
 
-    row.append(nameEl, input, perEl);
+    FIELDS.forEach(f => inputs[f.key].addEventListener('change', save));
+
+    row.append(nameEl, ...FIELDS.map(f => inputs[f.key]), perEl);
     list.appendChild(row);
   });
 }
@@ -2763,17 +2802,25 @@ function renderNutritionDaily() {
       const divisor = hasRecipes ? (d.baseServings || 1) : (d.servings || 1);
       const perServingScale = 1 / divisor;
 
-      let totalCal = 0;
+      let totalCal = 0, totalProtein = 0, totalFat = 0, totalCarbs = 0;
       let partial = false;
       parseIngredients(d.ingredients).forEach(({ qty, unit, name }) => {
         if (qty == null) { partial = true; return; }
-        const scaledQty = qty * perServingScale;
-        const cal = calcIngredientCal(scaledQty, unit, name);
-        if (cal == null) { partial = true; }
-        else { totalCal += cal; }
+        const n = calcIngredientNutrients(qty * perServingScale, unit, name);
+        if (n == null) { partial = true; return; }
+        totalCal     += n.cal;
+        totalProtein += n.protein;
+        totalFat     += n.fat;
+        totalCarbs   += n.carbs;
       });
 
-      return { meal, name: d.name, totalCal: Math.round(totalCal), partial };
+      return {
+        meal, name: d.name, partial,
+        totalCal:     Math.round(totalCal),
+        totalProtein: Math.round(totalProtein * 10) / 10,
+        totalFat:     Math.round(totalFat     * 10) / 10,
+        totalCarbs:   Math.round(totalCarbs   * 10) / 10,
+      };
     }).filter(Boolean);
 
     if (meals.length === 0) return;
@@ -2797,7 +2844,7 @@ function renderNutritionDaily() {
 
     block.appendChild(hdr);
 
-    meals.forEach(({ meal, name, totalCal, partial }) => {
+    meals.forEach(({ meal, name, totalCal, totalProtein, totalFat, totalCarbs, partial }) => {
       const row = document.createElement('div');
       row.className = 'nutr-meal-row';
 
@@ -2809,13 +2856,25 @@ function renderNutritionDaily() {
       nameEl.className = 'nutr-meal-name';
       nameEl.textContent = name || '—';
 
+      const right = document.createElement('div');
+      right.className = 'nutr-meal-right';
+
       const calEl = document.createElement('span');
       calEl.className = 'nutr-meal-cal' + (partial ? ' partial' : '');
       calEl.textContent = totalCal > 0
         ? `${totalCal.toLocaleString()} kcal${partial ? '*' : ''}`
         : (partial ? 'no data' : '0 kcal');
+      right.appendChild(calEl);
 
-      row.append(typeEl, nameEl, calEl);
+      const hasMacros = totalProtein > 0 || totalFat > 0 || totalCarbs > 0;
+      if (hasMacros) {
+        const macroEl = document.createElement('span');
+        macroEl.className = 'nutr-meal-macros';
+        macroEl.textContent = `${totalProtein}g P · ${totalFat}g F · ${totalCarbs}g C`;
+        right.appendChild(macroEl);
+      }
+
+      row.append(typeEl, nameEl, right);
       block.appendChild(row);
     });
 
