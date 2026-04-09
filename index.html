@@ -1057,6 +1057,77 @@ h2 {
   padding: 2.5rem 0;
 }
 
+.nutr-section-hdr {
+  font-size: 11px;
+  font-weight: 500;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 0 4px;
+}
+
+.nutr-section-hdr:first-child {
+  padding-top: 0;
+}
+
+.nutr-logged-section {
+  margin-top: 0.25rem;
+}
+
+.nutr-logged-section .nutr-col-hdr {
+  margin-top: 0.5rem;
+}
+
+.nutr-value-cell {
+  font-size: 14px;
+  width: 64px;
+  text-align: right;
+  flex-shrink: 0;
+  color: #1a1a1a;
+}
+
+.nutr-value-cell.empty {
+  color: #ccc;
+}
+
+.nutr-row-actions {
+  display: flex;
+  align-items: center;
+  min-width: 80px;
+  gap: 5px;
+}
+
+.nutr-edit-btn,
+.nutr-save-btn {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 0.5px solid rgba(0,0,0,0.15);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nutr-edit-btn {
+  background: none;
+  color: #888;
+}
+
+.nutr-edit-btn:hover {
+  background: rgba(0,0,0,0.05);
+  color: #333;
+}
+
+.nutr-save-btn {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: transparent;
+}
+
+.nutr-save-btn:hover {
+  background: #333;
+}
+
 .nutr-day-block {
   border: 0.5px solid rgba(0,0,0,0.12);
   border-radius: 8px;
@@ -2826,24 +2897,20 @@ function renderNutritionIngredients() {
     { key: 'fibre',   label: 'fibre',   placeholder: '0' },
   ];
 
-  // Column header
-  const hdr = document.createElement('div');
-  hdr.className = 'nutr-col-hdr';
-  let hdrHtml = '<span class="nutr-col-hdr-name">Ingredient</span>';
-  FIELDS.forEach(f => { hdrHtml += `<span class="nutr-col-hdr-cal">${f.label}</span>`; });
-  hdrHtml += '<span class="nutr-col-hdr-per">Per</span>';
-  hdr.innerHTML = hdrHtml;
-  list.appendChild(hdr);
+  const unlogged = ingredients.filter(i => !getNutritionEntry(i.name));
+  const logged   = ingredients.filter(i =>  getNutritionEntry(i.name));
 
-  ingredients.forEach(({ name, displayName, refUnit, perLabel, variants }) => {
-    const group = document.createElement('div');
-    group.className = 'nutr-ingredient-group';
+  function makeColHdr() {
+    const hdr = document.createElement('div');
+    hdr.className = 'nutr-col-hdr';
+    let hdrHtml = '<span class="nutr-col-hdr-name">Ingredient</span>';
+    FIELDS.forEach(f => { hdrHtml += `<span class="nutr-col-hdr-cal">${f.label}</span>`; });
+    hdrHtml += '<span class="nutr-col-hdr-per">Per</span>';
+    hdr.innerHTML = hdrHtml;
+    return hdr;
+  }
 
-    const row = document.createElement('div');
-    row.className = 'nutr-ingredient-row';
-
-    // Name cell — always show a text node; add expand button only when >=2 distinct raw names
-    // were grouped together (i.e. multiple spelling/plural variants exist).
+  function makeNameEl(displayName, variants) {
     const nameEl = document.createElement('span');
     nameEl.className = 'nutr-ing-name';
 
@@ -2852,9 +2919,8 @@ function renderNutritionIngredients() {
     nameText.textContent = cap(displayName);
     nameEl.appendChild(nameText);
 
-    const hasVariants = variants.length >= 2;
     let variantsList = null;
-    if (hasVariants) {
+    if (variants.length >= 2) {
       variantsList = document.createElement('div');
       variantsList.className = 'nutr-variants-list';
       variantsList.textContent = 'Groups: ' + variants.join(' · ');
@@ -2869,43 +2935,170 @@ function renderNutritionIngredients() {
       });
       nameEl.appendChild(btn);
     }
+    return { nameEl, variantsList };
+  }
 
-    const saved = getNutritionEntry(name);
-    const inputs = {};
-    FIELDS.forEach(f => {
-      const inp = document.createElement('input');
-      inp.className = 'nutr-cal-input';
-      inp.type = 'number';
-      inp.min = '0';
-      inp.step = f.key === 'cal' ? '1' : '0.1';
-      inp.placeholder = f.placeholder;
-      if (saved && saved[f.key] > 0) inp.value = saved[f.key];
-      inputs[f.key] = inp;
-    });
+  // ── Unlogged section ────────────────────────────────────────────────────────
+  if (unlogged.length > 0) {
+    if (logged.length > 0) {
+      const secHdr = document.createElement('div');
+      secHdr.className = 'nutr-section-hdr';
+      secHdr.textContent = 'No macros logged';
+      list.appendChild(secHdr);
+    }
 
-    const perEl = document.createElement('span');
-    perEl.className = 'nutr-per-label';
-    perEl.textContent = perLabel;
+    list.appendChild(makeColHdr());
 
-    const save = () => {
-      const entry = { refUnit };
-      let hasAny = false;
+    unlogged.forEach(({ name, displayName, refUnit, perLabel, variants }) => {
+      const group = document.createElement('div');
+      group.className = 'nutr-ingredient-group';
+
+      const row = document.createElement('div');
+      row.className = 'nutr-ingredient-row';
+
+      const { nameEl, variantsList } = makeNameEl(displayName, variants);
+
+      const inputs = {};
       FIELDS.forEach(f => {
-        const v = parseFloat(inputs[f.key].value);
-        if (!isNaN(v) && v >= 0) { entry[f.key] = v; hasAny = true; }
+        const inp = document.createElement('input');
+        inp.className = 'nutr-cal-input';
+        inp.type = 'number';
+        inp.min = '0';
+        inp.step = f.key === 'cal' ? '1' : '0.1';
+        inp.placeholder = f.placeholder;
+        inputs[f.key] = inp;
       });
-      if (hasAny) { nutritionData[name] = entry; }
-      else { delete nutritionData[name]; }
-      persist('nutrition', nutritionData);
-    };
 
-    FIELDS.forEach(f => inputs[f.key].addEventListener('change', save));
+      const perEl = document.createElement('span');
+      perEl.className = 'nutr-per-label';
+      perEl.textContent = perLabel;
 
-    row.append(nameEl, ...FIELDS.map(f => inputs[f.key]), perEl);
-    group.appendChild(row);
-    if (variantsList) group.appendChild(variantsList);
-    list.appendChild(group);
-  });
+      const saveAndMove = () => {
+        const entry = { refUnit };
+        let hasAny = false;
+        FIELDS.forEach(f => {
+          const v = parseFloat(inputs[f.key].value);
+          if (!isNaN(v) && v >= 0) { entry[f.key] = v; hasAny = true; }
+        });
+        if (hasAny) {
+          nutritionData[name] = entry;
+          persist('nutrition', nutritionData);
+          renderNutritionIngredients();
+        }
+      };
+
+      FIELDS.forEach(f => inputs[f.key].addEventListener('change', saveAndMove));
+
+      row.append(nameEl, ...FIELDS.map(f => inputs[f.key]), perEl);
+      group.appendChild(row);
+      if (variantsList) group.appendChild(variantsList);
+      list.appendChild(group);
+    });
+  }
+
+  // ── Logged section ──────────────────────────────────────────────────────────
+  if (logged.length > 0) {
+    const secHdr = document.createElement('div');
+    secHdr.className = 'nutr-section-hdr';
+    secHdr.textContent = unlogged.length > 0 ? 'Macros logged' : '';
+    list.appendChild(secHdr);
+
+    list.appendChild(makeColHdr());
+
+    logged.forEach(({ name, displayName, refUnit, perLabel, variants }) => {
+      const group = document.createElement('div');
+      group.className = 'nutr-ingredient-group';
+
+      function renderReadMode() {
+        group.innerHTML = '';
+        const row = document.createElement('div');
+        row.className = 'nutr-ingredient-row';
+
+        const { nameEl, variantsList } = makeNameEl(displayName, variants);
+        const saved = getNutritionEntry(name);
+
+        const valueCells = FIELDS.map(f => {
+          const cell = document.createElement('span');
+          cell.className = 'nutr-value-cell' + (saved && saved[f.key] > 0 ? '' : ' empty');
+          cell.textContent = saved && saved[f.key] > 0
+            ? (f.key === 'cal' ? Math.round(saved[f.key]) : saved[f.key])
+            : '—';
+          return cell;
+        });
+
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'nutr-row-actions';
+
+        const perEl = document.createElement('span');
+        perEl.className = 'nutr-per-label';
+        perEl.textContent = perLabel;
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'nutr-edit-btn';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', renderEditMode);
+
+        actionsEl.append(perEl, editBtn);
+        row.append(nameEl, ...valueCells, actionsEl);
+        group.appendChild(row);
+        if (variantsList) group.appendChild(variantsList);
+      }
+
+      function renderEditMode() {
+        group.innerHTML = '';
+        const row = document.createElement('div');
+        row.className = 'nutr-ingredient-row';
+
+        const { nameEl, variantsList } = makeNameEl(displayName, variants);
+        const saved = getNutritionEntry(name);
+
+        const inputs = {};
+        FIELDS.forEach(f => {
+          const inp = document.createElement('input');
+          inp.className = 'nutr-cal-input';
+          inp.type = 'number';
+          inp.min = '0';
+          inp.step = f.key === 'cal' ? '1' : '0.1';
+          inp.placeholder = '0';
+          if (saved && saved[f.key] > 0) inp.value = saved[f.key];
+          inputs[f.key] = inp;
+        });
+
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'nutr-row-actions';
+
+        const perEl = document.createElement('span');
+        perEl.className = 'nutr-per-label';
+        perEl.textContent = perLabel;
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'nutr-save-btn';
+        saveBtn.textContent = 'Save';
+        saveBtn.addEventListener('click', () => {
+          const entry = { refUnit };
+          let hasAny = false;
+          FIELDS.forEach(f => {
+            const v = parseFloat(inputs[f.key].value);
+            if (!isNaN(v) && v >= 0) { entry[f.key] = v; hasAny = true; }
+          });
+          if (hasAny) { nutritionData[name] = entry; }
+          else { delete nutritionData[name]; }
+          persist('nutrition', nutritionData);
+          // If all values cleared, move back to unlogged section
+          if (!hasAny) { renderNutritionIngredients(); return; }
+          renderReadMode();
+        });
+
+        actionsEl.append(perEl, saveBtn);
+        row.append(nameEl, ...FIELDS.map(f => inputs[f.key]), actionsEl);
+        group.appendChild(row);
+        if (variantsList) group.appendChild(variantsList);
+      }
+
+      renderReadMode();
+      list.appendChild(group);
+    });
+  }
 }
 
 function renderNutritionDaily() {
