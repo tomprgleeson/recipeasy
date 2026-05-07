@@ -1524,6 +1524,115 @@ const SUPABASE_ANON_KEY = 'sb_publishable_7J-P4ywWpgj-RRlH-NGeyw_rTJRysP7'
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Built-in nutrition reference data (USDA FoodData Central / NHS) ───────────
+// All values per 100g. Liquid entries include density (g/ml) for volume→g conversion.
+const NUTRITION_DB = {
+  // Proteins (raw unless noted)
+  'chicken breast': { cal: 165, protein: 31,   carbs: 0,    fat: 3.6  },
+  'chicken thigh':  { cal: 209, protein: 26,   carbs: 0,    fat: 11   },
+  'beef mince':     { cal: 176, protein: 20,   carbs: 0,    fat: 10   },
+  'salmon':         { cal: 208, protein: 20,   carbs: 0,    fat: 13   },
+  'tuna':           { cal: 116, protein: 23,   carbs: 0,    fat: 0.7  },
+  'egg':            { cal: 155, protein: 13,   carbs: 1.1,  fat: 11   },
+  'tofu':           { cal: 76,  protein: 8,    carbs: 1.9,  fat: 4.8  },
+  'bacon':          { cal: 541, protein: 37,   carbs: 1,    fat: 42   },
+  'pork':           { cal: 155, protein: 22,   carbs: 0,    fat: 6.9  },
+  'turkey':         { cal: 135, protein: 30,   carbs: 0,    fat: 1    },
+  'cod':            { cal: 82,  protein: 18,   carbs: 0,    fat: 0.7  },
+  'prawn':          { cal: 99,  protein: 24,   carbs: 0.2,  fat: 0.3  },
+  'shrimp':         { cal: 99,  protein: 24,   carbs: 0.2,  fat: 0.3  },
+  'lentil':         { cal: 116, protein: 9,    carbs: 20,   fat: 0.4  },
+  'chickpea':       { cal: 164, protein: 9,    carbs: 27,   fat: 2.6  },
+  'black bean':     { cal: 132, protein: 9,    carbs: 24,   fat: 0.5  },
+  'kidney bean':    { cal: 127, protein: 8.7,  carbs: 23,   fat: 0.5  },
+  // Dairy
+  'milk':           { cal: 64,  protein: 3.2,  carbs: 4.7,  fat: 3.6, density: 1.03 },
+  'greek yogurt':   { cal: 97,  protein: 9,    carbs: 4,    fat: 5    },
+  'yogurt':         { cal: 97,  protein: 9,    carbs: 4,    fat: 5    },
+  'cheddar':        { cal: 404, protein: 23,   carbs: 3.1,  fat: 33   },
+  'cheese':         { cal: 380, protein: 23,   carbs: 3,    fat: 31   },
+  'mozzarella':     { cal: 290, protein: 22,   carbs: 2.4,  fat: 22   },
+  'parmesan':       { cal: 420, protein: 28,   carbs: 3.9,  fat: 28   },
+  'butter':         { cal: 717, protein: 0.9,  carbs: 0.1,  fat: 81,  density: 0.911 },
+  'cream':          { cal: 340, protein: 2.1,  carbs: 2.8,  fat: 35,  density: 1.0   },
+  'sour cream':     { cal: 198, protein: 2.4,  carbs: 4.6,  fat: 20   },
+  'cream cheese':   { cal: 350, protein: 6.2,  carbs: 5.5,  fat: 35   },
+  // Grains/Carbs
+  'white rice':     { cal: 130, protein: 2.7,  carbs: 28.6, fat: 0.3  }, // cooked
+  'brown rice':     { cal: 111, protein: 2.6,  carbs: 23,   fat: 0.9  }, // cooked
+  'rice':           { cal: 130, protein: 2.7,  carbs: 28.6, fat: 0.3  }, // cooked
+  'pasta':          { cal: 131, protein: 5,    carbs: 25,   fat: 1.1  }, // cooked
+  'noodle':         { cal: 138, protein: 5,    carbs: 27,   fat: 1.1  }, // cooked
+  'bread':          { cal: 266, protein: 9,    carbs: 44,   fat: 3.3  },
+  'oat':            { cal: 389, protein: 17,   carbs: 66,   fat: 6.9  },
+  'flour':          { cal: 364, protein: 10,   carbs: 76,   fat: 1    },
+  'potato':         { cal: 77,  protein: 2,    carbs: 17,   fat: 0.1  },
+  'sweet potato':   { cal: 86,  protein: 1.6,  carbs: 20,   fat: 0.1  },
+  // Vegetables
+  'broccoli':       { cal: 34,  protein: 2.8,  carbs: 6,    fat: 0.4  },
+  'spinach':        { cal: 23,  protein: 2.9,  carbs: 3.6,  fat: 0.4  },
+  'carrot':         { cal: 41,  protein: 0.9,  carbs: 10,   fat: 0.2  },
+  'onion':          { cal: 40,  protein: 1.1,  carbs: 9,    fat: 0.1  },
+  'garlic':         { cal: 149, protein: 6.4,  carbs: 33,   fat: 0.5  },
+  'tomato':         { cal: 18,  protein: 0.9,  carbs: 3.9,  fat: 0.2  },
+  'cucumber':       { cal: 16,  protein: 0.7,  carbs: 3.6,  fat: 0.1  },
+  'pepper':         { cal: 31,  protein: 1,    carbs: 6,    fat: 0.3  },
+  'mushroom':       { cal: 22,  protein: 3.1,  carbs: 3.3,  fat: 0.3  },
+  'courgette':      { cal: 21,  protein: 1.5,  carbs: 3.1,  fat: 0.4  },
+  'zucchini':       { cal: 21,  protein: 1.5,  carbs: 3.1,  fat: 0.4  },
+  'pea':            { cal: 72,  protein: 5.4,  carbs: 12,   fat: 0.4  },
+  'kale':           { cal: 28,  protein: 2.6,  carbs: 5.4,  fat: 0.4  },
+  'cauliflower':    { cal: 25,  protein: 1.9,  carbs: 5,    fat: 0.3  },
+  'celery':         { cal: 16,  protein: 0.7,  carbs: 3.7,  fat: 0.2  },
+  'leek':           { cal: 61,  protein: 1.5,  carbs: 14,   fat: 0.3  },
+  'aubergine':      { cal: 25,  protein: 1,    carbs: 5.9,  fat: 0.2  },
+  'eggplant':       { cal: 25,  protein: 1,    carbs: 5.9,  fat: 0.2  },
+  'corn':           { cal: 86,  protein: 3.3,  carbs: 19,   fat: 1.2  },
+  'asparagus':      { cal: 20,  protein: 2.2,  carbs: 3.9,  fat: 0.1  },
+  // Fruits
+  'banana':         { cal: 89,  protein: 1.1,  carbs: 23,   fat: 0.3  },
+  'apple':          { cal: 52,  protein: 0.3,  carbs: 14,   fat: 0.2  },
+  'avocado':        { cal: 160, protein: 2,    carbs: 9,    fat: 15   },
+  'lemon':          { cal: 29,  protein: 1.1,  carbs: 9,    fat: 0.3  },
+  'lime':           { cal: 30,  protein: 0.7,  carbs: 11,   fat: 0.2  },
+  'berry':          { cal: 57,  protein: 0.7,  carbs: 14,   fat: 0.3  },
+  'mango':          { cal: 60,  protein: 0.8,  carbs: 15,   fat: 0.4  },
+  'strawberry':     { cal: 32,  protein: 0.7,  carbs: 7.7,  fat: 0.3  },
+  // Oils (density key enables volume→g conversion)
+  'olive oil':      { cal: 884, protein: 0,    carbs: 0,    fat: 100, density: 0.916 },
+  'vegetable oil':  { cal: 884, protein: 0,    carbs: 0,    fat: 100, density: 0.92  },
+  'coconut oil':    { cal: 892, protein: 0,    carbs: 0,    fat: 100, density: 0.924 },
+  'oil':            { cal: 884, protein: 0,    carbs: 0,    fat: 100, density: 0.916 },
+  // Condiments / sauces
+  'soy sauce':      { cal: 53,  protein: 9,    carbs: 5.6,  fat: 0.3, density: 1.15  },
+  'tomato paste':   { cal: 82,  protein: 4.3,  carbs: 18.9, fat: 0.5  },
+  'passata':        { cal: 26,  protein: 1.2,  carbs: 3.8,  fat: 0.1  },
+  'ketchup':        { cal: 118, protein: 0,    carbs: 29,   fat: 0    },
+  'honey':          { cal: 304, protein: 0.3,  carbs: 82,   fat: 0,   density: 1.42  },
+  'peanut butter':  { cal: 598, protein: 22,   carbs: 22,   fat: 51   },
+  'coconut milk':   { cal: 197, protein: 2.3,  carbs: 2.8,  fat: 21,  density: 1.01  },
+  'stock':          { cal: 6,   protein: 0.5,  carbs: 0.2,  fat: 0.3, density: 1.0   },
+  'broth':          { cal: 6,   protein: 0.5,  carbs: 0.2,  fat: 0.3, density: 1.0   },
+  'chopped tomato': { cal: 24,  protein: 1.1,  carbs: 4.6,  fat: 0.2  },
+  'tinned tomato':  { cal: 24,  protein: 1.1,  carbs: 4.6,  fat: 0.2  },
+};
+
+// Typical weight in grams for unitless ingredients (e.g. "2 eggs", "1 onion")
+const TYPICAL_WEIGHT = {
+  'egg': 60, 'large egg': 70, 'small egg': 50,
+  'onion': 150, 'large onion': 200, 'small onion': 100,
+  'clove': 5, 'garlic clove': 5,
+  'potato': 200, 'large potato': 300, 'small potato': 120,
+  'sweet potato': 180,
+  'banana': 120, 'apple': 182, 'avocado': 200,
+  'lemon': 100, 'lime': 80,
+  'tomato': 120, 'large tomato': 180, 'small tomato': 80,
+  'mushroom': 20,
+  'pepper': 160, 'bell pepper': 160,
+  'courgette': 200, 'zucchini': 200,
+  'carrot': 80, 'large carrot': 120, 'small carrot': 50,
+};
+
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const MEALS = ['Breakfast', 'Lunch', 'Dinner'];
 
@@ -2867,15 +2976,102 @@ function getNutritionEntry(name) {
 function calcIngredientNutrients(qty, unit, name) {
   if (qty == null) return null;
   const entry = getNutritionEntry(name);
-  if (!entry) return null;
-  const scale = getScaleFactor(qty, unit, entry.refUnit);
-  if (scale == null) return null;
+  if (entry) {
+    const scale = getScaleFactor(qty, unit, entry.refUnit);
+    if (scale == null) return null;
+    return {
+      cal:     (entry.cal     > 0) ? entry.cal     * scale : 0,
+      protein: (entry.protein > 0) ? entry.protein * scale : 0,
+      fat:     (entry.fat     > 0) ? entry.fat     * scale : 0,
+      carbs:   (entry.carbs   > 0) ? entry.carbs   * scale : 0,
+      fibre:   (entry.fibre   > 0) ? entry.fibre   * scale : 0,
+    };
+  }
+  return calcBuiltinNutrients(qty, unit, name);
+}
+
+// Find the best matching entry in NUTRITION_DB for a given ingredient name.
+function lookupNutritionDB(name) {
+  const norm = normalizeName(name.toLowerCase().trim());
+  if (NUTRITION_DB[norm]) return NUTRITION_DB[norm];
+  // Try substring match: ingredient name contains a DB key, or DB key contains the normalised name
+  const found = Object.keys(NUTRITION_DB).find(k => norm.includes(k) || k.includes(norm));
+  return found ? NUTRITION_DB[found] : null;
+}
+
+// Convert a quantity + unit to grams using NUTRITION_DB density for liquids,
+// or TYPICAL_WEIGHT for unitless ingredients.
+function ingredientToGrams(qty, unit, name, density) {
+  density = density || 1.0;
+  const toG = { g: 1, kg: 1000, mg: 0.001, oz: 28.3495, lb: 453.592 };
+  if (unit && toG[unit] != null) return qty * toG[unit];
+  const toMl = { ml: 1, l: 1000, tsp: 4.929, tbsp: 14.787, cup: 236.588 };
+  if (unit && toMl[unit] != null) return qty * toMl[unit] * density;
+  // Unitless: look up typical weight by normalised name or last word (handles "clove", "large egg" etc.)
+  const norm = normalizeName(name.toLowerCase().trim());
+  const tw = TYPICAL_WEIGHT[norm]
+    || TYPICAL_WEIGHT[norm.split(' ').slice(-1)[0]]
+    || TYPICAL_WEIGHT[norm.split(' ')[0]];
+  return tw ? qty * tw : null;
+}
+
+// Use NUTRITION_DB as a fallback when no user-entered data exists for an ingredient.
+function calcBuiltinNutrients(qty, unit, name) {
+  const dbEntry = lookupNutritionDB(name);
+  if (!dbEntry) return null;
+  const grams = ingredientToGrams(qty, unit, name, dbEntry.density);
+  if (grams == null) return null;
+  const scale = grams / 100;
   return {
-    cal:     (entry.cal     > 0) ? entry.cal     * scale : 0,
-    protein: (entry.protein > 0) ? entry.protein * scale : 0,
-    fat:     (entry.fat     > 0) ? entry.fat     * scale : 0,
-    carbs:   (entry.carbs   > 0) ? entry.carbs   * scale : 0,
-    fibre:   (entry.fibre   > 0) ? entry.fibre   * scale : 0,
+    cal:     dbEntry.cal     * scale,
+    protein: dbEntry.protein * scale,
+    fat:     dbEntry.fat     * scale,
+    carbs:   dbEntry.carbs   * scale,
+    fibre:   0,
+  };
+}
+
+// Build a nutritionData-compatible entry from NUTRITION_DB for a given refUnit,
+// so it can be stored in nutritionData when the user chooses to pre-fill.
+// Returns null if dbEntry is null or conversion isn't possible.
+function builtinToEntry(dbEntry, refUnit, ingredientName) {
+  if (!dbEntry) return null;
+  const toMl = { tsp: 4.929, tbsp: 14.787, cup: 236.588 };
+  const density = dbEntry.density || 1.0;
+  let scale;
+  if (refUnit === 'g' || refUnit === 'kg' || refUnit === 'oz' || refUnit === 'lb') {
+    scale = 1; // NUTRITION_DB values are already per 100g
+  } else if (refUnit === 'ml' || refUnit === 'l') {
+    scale = 1 / density; // per 100ml = per 100g / density
+  } else if (toMl[refUnit]) {
+    scale = toMl[refUnit] * density / 100; // per 1 tsp/tbsp/cup
+    return {
+      refUnit,
+      cal:     Math.round(dbEntry.cal     * scale * 10) / 10,
+      protein: Math.round(dbEntry.protein * scale * 10) / 10,
+      fat:     Math.round(dbEntry.fat     * scale * 10) / 10,
+      carbs:   Math.round(dbEntry.carbs   * scale * 10) / 10,
+    };
+  } else {
+    // Per-piece: use TYPICAL_WEIGHT
+    const norm = normalizeName(ingredientName.toLowerCase().trim());
+    const tw = TYPICAL_WEIGHT[norm] || TYPICAL_WEIGHT[norm.split(' ').slice(-1)[0]];
+    if (!tw) return null;
+    scale = tw / 100;
+    return {
+      refUnit,
+      cal:     Math.round(dbEntry.cal     * scale * 10) / 10,
+      protein: Math.round(dbEntry.protein * scale * 10) / 10,
+      fat:     Math.round(dbEntry.fat     * scale * 10) / 10,
+      carbs:   Math.round(dbEntry.carbs   * scale * 10) / 10,
+    };
+  }
+  return {
+    refUnit,
+    cal:     Math.round(dbEntry.cal     * scale),
+    protein: Math.round(dbEntry.protein * scale * 10) / 10,
+    fat:     Math.round(dbEntry.fat     * scale * 10) / 10,
+    carbs:   Math.round(dbEntry.carbs   * scale * 10) / 10,
   };
 }
 
@@ -2941,12 +3137,38 @@ function renderNutritionIngredients() {
 
   // ── Unlogged section ────────────────────────────────────────────────────────
   if (unlogged.length > 0) {
-    if (logged.length > 0) {
+    const dbMatched = unlogged.filter(({ name, refUnit }) => builtinToEntry(lookupNutritionDB(name), refUnit, name));
+
+    const secHdrRow = document.createElement('div');
+    secHdrRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+    if (logged.length > 0 || dbMatched.length > 0) {
       const secHdr = document.createElement('div');
       secHdr.className = 'nutr-section-hdr';
+      secHdr.style.flex = '1';
       secHdr.textContent = 'No macros logged';
-      list.appendChild(secHdr);
+      secHdrRow.appendChild(secHdr);
     }
+
+    if (dbMatched.length > 0) {
+      const prefillBtn = document.createElement('button');
+      prefillBtn.className = 'nutr-edit-btn';
+      prefillBtn.style.cssText = 'font-size:12px;padding:3px 9px;flex-shrink:0;';
+      prefillBtn.textContent = `Pre-fill ${dbMatched.length} from built-in data`;
+      prefillBtn.title = 'Populate macro values from the built-in USDA/NHS database for all recognised ingredients';
+      prefillBtn.addEventListener('click', () => {
+        dbMatched.forEach(({ name, refUnit }) => {
+          const dbEntry = lookupNutritionDB(name);
+          const entry = builtinToEntry(dbEntry, refUnit, name);
+          if (entry) nutritionData[name] = entry;
+        });
+        persist('nutrition', nutritionData);
+        renderNutritionIngredients();
+      });
+      secHdrRow.appendChild(prefillBtn);
+    }
+
+    if (secHdrRow.childNodes.length > 0) list.appendChild(secHdrRow);
 
     list.appendChild(makeColHdr());
 
@@ -2959,6 +3181,10 @@ function renderNutritionIngredients() {
 
       const { nameEl, variantsList } = makeNameEl(displayName, variants);
 
+      // Pre-populate inputs with NUTRITION_DB suggestions if available
+      const dbEntry = lookupNutritionDB(name);
+      const dbSuggestion = dbEntry ? builtinToEntry(dbEntry, refUnit, name) : null;
+
       const inputs = {};
       FIELDS.forEach(f => {
         const inp = document.createElement('input');
@@ -2966,7 +3192,12 @@ function renderNutritionIngredients() {
         inp.type = 'number';
         inp.min = '0';
         inp.step = f.key === 'cal' ? '1' : '0.1';
-        inp.placeholder = f.placeholder;
+        if (dbSuggestion && dbSuggestion[f.key] > 0) {
+          inp.placeholder = dbSuggestion[f.key];
+          inp.title = `Suggested from built-in data: ${dbSuggestion[f.key]}`;
+        } else {
+          inp.placeholder = '0';
+        }
         inputs[f.key] = inp;
       });
 
