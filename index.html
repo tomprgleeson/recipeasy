@@ -1225,6 +1225,151 @@ h2 {
   color: #aaa;
   font-style: italic;
 }
+
+.nutr-inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: #1a1a1a;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.nutr-goals-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.nutr-goal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nutr-goal-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nutr-goal-input {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  width: 100%;
+  border: 0.5px solid rgba(0,0,0,0.18);
+  border-radius: 7px;
+  padding: 6px 10px;
+  outline: none;
+  color: #1a1a1a;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.nutr-goal-input:focus {
+  border-color: rgba(0,0,0,0.4);
+}
+
+.nutr-goal-unit {
+  font-size: 12px;
+  color: #bbb;
+  margin-top: 2px;
+}
+
+.nutr-progress-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background: #fafaf8;
+  border-radius: 8px;
+  border: 0.5px solid rgba(0,0,0,0.08);
+}
+
+.nutr-progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nutr-progress-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.nutr-progress-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nutr-progress-val {
+  font-size: 13px;
+  color: #444;
+}
+
+.nutr-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.nutr-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.nutr-bar-green  { background: #22c55e; }
+.nutr-bar-amber  { background: #f59e0b; }
+.nutr-bar-red    { background: #ef4444; }
+
+.nutr-suggest-wrap {
+  margin-top: 1.25rem;
+}
+
+.nutr-suggest-hdr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.nutr-suggest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nutr-suggest-item {
+  font-size: 14px;
+  color: #444;
+  background: #f5f5f3;
+  border-radius: 7px;
+  padding: 8px 12px;
+  line-height: 1.45;
+}
+
+.nutr-suggest-item strong {
+  color: #1a1a1a;
+}
+
+.nutr-suggest-empty {
+  font-size: 14px;
+  color: #bbb;
+  padding: 0.5rem 0;
+}
 </style>
 </head>
 <body>
@@ -1394,14 +1539,28 @@ h2 {
       <div class="nutr-sub-nav">
         <button class="nutr-sub-btn active" data-nutr-view="ingredients">Ingredient calories</button>
         <button class="nutr-sub-btn" data-nutr-view="daily">Daily totals</button>
+        <button class="nutr-sub-btn" data-nutr-view="goals">Goals</button>
       </div>
       <div id="nutr-ingredients-view">
         <p class="nutr-desc">Enter the calorie content for each ingredient used across your recipes. The most common unit for each ingredient is used — weight/volume ingredients ask per 100g or 100ml.</p>
         <div id="nutr-ingredient-list"></div>
       </div>
       <div id="nutr-daily-view" style="display:none;">
-        <p class="nutr-desc">Estimated daily calories with each meal scaled to one serving. Figures in grey indicate incomplete calorie data for that meal.</p>
+        <p class="nutr-desc">Estimated daily calories per serving. Set targets in <button class="nutr-inline-link" data-nutr-view="goals">Goals</button> to see progress bars. Figures in grey indicate incomplete data.</p>
         <div id="nutr-daily-list"></div>
+      </div>
+      <div id="nutr-goals-view" style="display:none;">
+        <p class="nutr-desc">Set your daily targets. These are used to show progress bars on the Daily totals view and to generate recipe suggestions.</p>
+        <div id="nutr-goals-form"></div>
+        <div id="nutr-suggestions-wrap" style="display:none;">
+          <div class="nutr-suggest-wrap">
+            <div class="nutr-suggest-hdr-row">
+              <div class="nutr-section-hdr" style="padding:0;margin:0;">Suggestions</div>
+              <button class="nutr-edit-btn" id="nutr-suggest-btn">Suggest recipes</button>
+            </div>
+            <div id="nutr-suggest-list"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2858,6 +3017,7 @@ async function initApp() {
   recipes = load('recipes', []);
   pantry = load('pantry', []);
   nutritionData = load('nutrition', {});
+  nutritionGoals = load('nutritionGoals', { cal: 0, protein: 0, carbs: 0, fat: 0 });
   const shopState = load('shopstate', { auto: [], manual: [], pantrySkipped: 0 });
   autoItems = shopState.auto || [];
   manualItems = shopState.manual || [];
@@ -2900,6 +3060,7 @@ document.getElementById('logout-btn').addEventListener('click', () => db.auth.si
 
 // ── Nutrition ─────────────────────────────────────────────────────────────────
 let nutritionData = {}; // { [ingredientName]: { cal, protein, fat, carbs: number, refUnit: string } }
+let nutritionGoals = { cal: 0, protein: 0, carbs: 0, fat: 0 }; // daily targets; 0 = not set
 
 const WEIGHT_UNITS = new Set(['g', 'kg', 'mg', 'oz', 'lb']);
 const VOLUME_UNITS = new Set(['ml', 'l']);
@@ -3337,6 +3498,24 @@ function renderNutritionDaily() {
   const list = document.getElementById('nutr-daily-list');
   list.innerHTML = '';
 
+  // Week-average progress bars vs goals (shown when goals are set)
+  const hasGoals = Object.values(nutritionGoals).some(v => v > 0);
+  const avg = getWeekAverage();
+  if (avg && hasGoals) {
+    const progressWrap = document.createElement('div');
+    progressWrap.className = 'nutr-progress-wrap';
+    progressWrap.style.marginBottom = '1rem';
+    const subtitle = document.createElement('div');
+    subtitle.style.cssText = 'grid-column: 1 / -1; font-size:12px; color:#aaa; margin-bottom:2px;';
+    subtitle.textContent = `Week average vs goals (${avg.days} day${avg.days !== 1 ? 's' : ''} planned)`;
+    progressWrap.appendChild(subtitle);
+    renderProgressBar(progressWrap, 'Calories', avg.cal,     nutritionGoals.cal,     'kcal');
+    renderProgressBar(progressWrap, 'Protein',  avg.protein, nutritionGoals.protein, 'g');
+    renderProgressBar(progressWrap, 'Carbs',    avg.carbs,   nutritionGoals.carbs,   'g');
+    renderProgressBar(progressWrap, 'Fat',      avg.fat,     nutritionGoals.fat,     'g');
+    list.appendChild(progressWrap);
+  }
+
   const orderedDays = getOrderedDays();
   let anyMeal = false;
 
@@ -3454,8 +3633,246 @@ function renderNutritionDaily() {
   });
 
   if (!anyMeal) {
-    list.innerHTML = '<div class="nutr-empty">No meals planned yet — fill in the Meal Planner first.</div>';
+    const empty = document.createElement('div');
+    empty.className = 'nutr-empty';
+    empty.textContent = 'No meals planned yet — fill in the Meal Planner first.';
+    list.appendChild(empty);
   }
+}
+
+// ── Goals & Suggestions ───────────────────────────────────────────────────────
+
+// Calculate nutrition per serving for a recipe (using both user data + NUTRITION_DB fallback).
+function getRecipeNutritionPerServing(recipe) {
+  let cal = 0, protein = 0, carbs = 0, fat = 0, partial = false;
+  parseIngredients(recipe.ingredients).forEach(({ qty, unit, name }) => {
+    if (qty == null) { partial = true; return; }
+    const n = calcIngredientNutrients(qty, unit, name);
+    if (!n) { partial = true; return; }
+    cal += n.cal; protein += n.protein; carbs += n.carbs; fat += n.fat;
+  });
+  const s = recipe.servings || 1;
+  return { cal: cal / s, protein: protein / s, carbs: carbs / s, fat: fat / s, partial };
+}
+
+// Get average daily totals across all planned days that have meals.
+function getWeekAverage() {
+  const orderedDays = getOrderedDays();
+  let dayCount = 0;
+  const totals = { cal: 0, protein: 0, carbs: 0, fat: 0 };
+  orderedDays.forEach(day => {
+    let dayCal = 0, dayProtein = 0, dayCarbs = 0, dayFat = 0, hasMeal = false;
+    MEALS.forEach(meal => {
+      const d = planData[day]?.[meal];
+      if (!d?.ingredients?.trim()) return;
+      hasMeal = true;
+      const divisor = (d.recipeIds?.length > 0) ? (d.baseServings || 1) : (d.servings || 1);
+      const scale = 1 / divisor;
+      parseIngredients(d.ingredients).forEach(({ qty, unit, name }) => {
+        if (qty == null) return;
+        const n = calcIngredientNutrients(qty * scale, unit, name);
+        if (!n) return;
+        dayCal += n.cal; dayProtein += n.protein; dayCarbs += n.carbs; dayFat += n.fat;
+      });
+    });
+    if (hasMeal) {
+      dayCount++;
+      totals.cal += dayCal; totals.protein += dayProtein;
+      totals.carbs += dayCarbs; totals.fat += dayFat;
+    }
+  });
+  if (!dayCount) return null;
+  return { cal: totals.cal / dayCount, protein: totals.protein / dayCount,
+           carbs: totals.carbs / dayCount, fat: totals.fat / dayCount, days: dayCount };
+}
+
+function renderProgressBar(wrap, label, actual, goal, unit) {
+  const item = document.createElement('div');
+  item.className = 'nutr-progress-item';
+
+  const hdr = document.createElement('div');
+  hdr.className = 'nutr-progress-hdr';
+  const lbl = document.createElement('span');
+  lbl.className = 'nutr-progress-label';
+  lbl.textContent = label;
+  const val = document.createElement('span');
+  val.className = 'nutr-progress-val';
+
+  const rounded = Math.round(actual);
+  if (goal > 0) {
+    const pct = Math.round((actual / goal) * 100);
+    val.textContent = `${rounded} / ${goal} ${unit} (${pct}%)`;
+    const bar = document.createElement('div');
+    bar.className = 'nutr-bar';
+    const fill = document.createElement('div');
+    fill.className = 'nutr-bar-fill ' + (pct < 70 ? 'nutr-bar-amber' : pct > 130 ? 'nutr-bar-red' : 'nutr-bar-green');
+    fill.style.width = Math.min(pct, 150) + '%';
+    bar.appendChild(fill);
+    hdr.append(lbl, val);
+    item.append(hdr, bar);
+  } else {
+    val.textContent = `${rounded} ${unit}`;
+    hdr.append(lbl, val);
+    item.appendChild(hdr);
+  }
+
+  wrap.appendChild(item);
+}
+
+function renderNutritionGoals() {
+  const formEl = document.getElementById('nutr-goals-form');
+  formEl.innerHTML = '';
+
+  const GOAL_FIELDS = [
+    { key: 'cal',     label: 'Calories',  unit: 'kcal/day', step: 50,  min: 0 },
+    { key: 'protein', label: 'Protein',   unit: 'g/day',    step: 5,   min: 0 },
+    { key: 'carbs',   label: 'Carbs',     unit: 'g/day',    step: 5,   min: 0 },
+    { key: 'fat',     label: 'Fat',       unit: 'g/day',    step: 5,   min: 0 },
+  ];
+
+  const grid = document.createElement('div');
+  grid.className = 'nutr-goals-form';
+
+  const inputs = {};
+  GOAL_FIELDS.forEach(({ key, label, unit, step, min }) => {
+    const field = document.createElement('div');
+    field.className = 'nutr-goal-field';
+    const lbl = document.createElement('span');
+    lbl.className = 'nutr-goal-label';
+    lbl.textContent = label;
+    const inp = document.createElement('input');
+    inp.className = 'nutr-goal-input';
+    inp.type = 'number';
+    inp.min = min;
+    inp.step = step;
+    inp.placeholder = '0 = not set';
+    if (nutritionGoals[key] > 0) inp.value = nutritionGoals[key];
+    const unitEl = document.createElement('span');
+    unitEl.className = 'nutr-goal-unit';
+    unitEl.textContent = unit;
+    inputs[key] = inp;
+    field.append(lbl, inp, unitEl);
+    grid.appendChild(field);
+  });
+
+  const saveRow = document.createElement('div');
+  saveRow.style.cssText = 'display:flex;align-items:flex-end;padding-bottom:2px;';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-sm btn-primary';
+  saveBtn.textContent = 'Save goals';
+  saveBtn.addEventListener('click', () => {
+    const updated = {};
+    GOAL_FIELDS.forEach(({ key }) => {
+      const v = parseFloat(inputs[key].value);
+      updated[key] = (!isNaN(v) && v > 0) ? Math.round(v) : 0;
+    });
+    nutritionGoals = updated;
+    persist('nutritionGoals', nutritionGoals);
+    renderNutritionGoals();
+  });
+  saveRow.appendChild(saveBtn);
+  grid.appendChild(saveRow);
+  formEl.appendChild(grid);
+
+  // Current week average vs goals
+  const avg = getWeekAverage();
+  const hasGoals = Object.values(nutritionGoals).some(v => v > 0);
+  const suggestWrap = document.getElementById('nutr-suggestions-wrap');
+
+  if (avg) {
+    const progressWrap = document.createElement('div');
+    progressWrap.className = 'nutr-progress-wrap';
+
+    const subtitle = document.createElement('div');
+    subtitle.style.cssText = 'grid-column: 1 / -1; font-size:12px; color:#aaa; margin-bottom:2px;';
+    subtitle.textContent = `Current week average (${avg.days} day${avg.days !== 1 ? 's' : ''} planned)`;
+    progressWrap.appendChild(subtitle);
+
+    renderProgressBar(progressWrap, 'Calories', avg.cal, nutritionGoals.cal, 'kcal');
+    renderProgressBar(progressWrap, 'Protein',  avg.protein, nutritionGoals.protein, 'g');
+    renderProgressBar(progressWrap, 'Carbs',    avg.carbs, nutritionGoals.carbs, 'g');
+    renderProgressBar(progressWrap, 'Fat',      avg.fat, nutritionGoals.fat, 'g');
+
+    formEl.appendChild(progressWrap);
+    if (suggestWrap) suggestWrap.style.display = hasGoals ? '' : 'none';
+  } else {
+    if (suggestWrap) suggestWrap.style.display = 'none';
+  }
+}
+
+// Generate recipe suggestions to close nutritional gaps.
+function getSuggestions() {
+  const avg = getWeekAverage();
+  if (!avg) return [{ text: 'No meals planned yet — fill in the Meal Planner first.', empty: true }];
+  const hasGoals = Object.values(nutritionGoals).some(v => v > 0);
+  if (!hasGoals) return [{ text: 'Set your daily goals above to get suggestions.', empty: true }];
+  if (!recipes.length) return [{ text: 'Add some recipes to your Recipe Book first.', empty: true }];
+
+  // Score each recipe by how well it fills the largest deficit (per calorie added)
+  const gaps = {
+    cal:     (nutritionGoals.cal     > 0) ? nutritionGoals.cal     - avg.cal     : 0,
+    protein: (nutritionGoals.protein > 0) ? nutritionGoals.protein - avg.protein : 0,
+    carbs:   (nutritionGoals.carbs   > 0) ? nutritionGoals.carbs   - avg.carbs   : 0,
+    fat:     (nutritionGoals.fat     > 0) ? nutritionGoals.fat     - avg.fat     : 0,
+  };
+
+  const results = [];
+
+  // Calorie gap: if avg is well below target, suggest highest-cal recipes
+  if (gaps.cal > 200) {
+    const sorted = recipes
+      .map(r => ({ r, n: getRecipeNutritionPerServing(r) }))
+      .filter(({ n }) => n.cal > 10)
+      .sort((a, b) => b.n.cal - a.n.cal)
+      .slice(0, 2);
+    sorted.forEach(({ r, n }) =>
+      results.push(`Add <strong>${r.name}</strong> (${Math.round(n.cal)} kcal/serving) to help reach your calorie target — you're averaging ${Math.round(avg.cal)} kcal vs a goal of ${nutritionGoals.cal} kcal.`)
+    );
+  } else if (gaps.cal < -200) {
+    results.push(`Your average (${Math.round(avg.cal)} kcal/day) is ${Math.round(-gaps.cal)} kcal over your target of ${nutritionGoals.cal} kcal. Consider reducing portion sizes or swapping a high-calorie meal.`);
+  }
+
+  // Protein gap
+  if (gaps.protein > 15) {
+    const sorted = recipes
+      .map(r => ({ r, n: getRecipeNutritionPerServing(r) }))
+      .filter(({ n }) => n.protein > 5 && n.cal > 10)
+      .sort((a, b) => (b.n.protein / Math.max(b.n.cal, 1)) - (a.n.protein / Math.max(a.n.cal, 1)))
+      .slice(0, 2);
+    sorted.forEach(({ r, n }) =>
+      results.push(`<strong>${r.name}</strong> is protein-rich (${Math.round(n.protein * 10) / 10}g/serving). Add it to days where you're short on protein — you're averaging ${Math.round(avg.protein * 10) / 10}g vs a goal of ${nutritionGoals.protein}g.`)
+    );
+  }
+
+  // Carbs gap
+  if (gaps.carbs > 30) {
+    const sorted = recipes
+      .map(r => ({ r, n: getRecipeNutritionPerServing(r) }))
+      .filter(({ n }) => n.carbs > 10)
+      .sort((a, b) => b.n.carbs - a.n.carbs)
+      .slice(0, 1);
+    sorted.forEach(({ r, n }) =>
+      results.push(`<strong>${r.name}</strong> is carb-dense (${Math.round(n.carbs * 10) / 10}g/serving) and could help close your ${Math.round(gaps.carbs)}g/day carb gap.`)
+    );
+  }
+
+  // Fat gap
+  if (gaps.fat > 15) {
+    const sorted = recipes
+      .map(r => ({ r, n: getRecipeNutritionPerServing(r) }))
+      .filter(({ n }) => n.fat > 5)
+      .sort((a, b) => b.n.fat - a.n.fat)
+      .slice(0, 1);
+    sorted.forEach(({ r, n }) =>
+      results.push(`<strong>${r.name}</strong> is relatively high in fat (${Math.round(n.fat * 10) / 10}g/serving). Useful if you're trying to reach your fat goal of ${nutritionGoals.fat}g — currently averaging ${Math.round(avg.fat * 10) / 10}g.`)
+    );
+  }
+
+  if (!results.length) {
+    results.push({ text: 'Your weekly average looks well-balanced against your goals. Keep it up!', empty: false });
+  }
+
+  return results;
 }
 
 // Sub-nav switching inside Nutrition tab
@@ -3466,8 +3883,49 @@ document.querySelectorAll('.nutr-sub-btn').forEach(btn => {
     const view = btn.dataset.nutrView;
     document.getElementById('nutr-ingredients-view').style.display = view === 'ingredients' ? '' : 'none';
     document.getElementById('nutr-daily-view').style.display = view === 'daily' ? '' : 'none';
+    document.getElementById('nutr-goals-view').style.display = view === 'goals' ? '' : 'none';
     if (view === 'ingredients') renderNutritionIngredients();
-    else renderNutritionDaily();
+    else if (view === 'daily') renderNutritionDaily();
+    else if (view === 'goals') renderNutritionGoals();
+  });
+});
+
+// "Goals" link inside daily description
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.nutr-inline-link[data-nutr-view]');
+  if (!btn) return;
+  const targetView = btn.dataset.nutrView;
+  document.querySelectorAll('.nutr-sub-btn').forEach(b => {
+    const active = b.dataset.nutrView === targetView;
+    b.classList.toggle('active', active);
+  });
+  ['ingredients', 'daily', 'goals'].forEach(v => {
+    document.getElementById(`nutr-${v}-view`).style.display = v === targetView ? '' : 'none';
+  });
+  if (targetView === 'goals') renderNutritionGoals();
+});
+
+// "Suggest recipes" button
+document.getElementById('nutr-suggest-btn')?.addEventListener('click', () => {
+  const listEl = document.getElementById('nutr-suggest-list');
+  listEl.innerHTML = '';
+  const suggestions = getSuggestions();
+  if (!suggestions.length) {
+    listEl.innerHTML = '<div class="nutr-suggest-empty">No suggestions right now.</div>';
+    return;
+  }
+  suggestions.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'nutr-suggest-item';
+    const text = typeof s === 'string' ? s : s.text;
+    const isEmpty = typeof s === 'object' && s.empty;
+    if (isEmpty) {
+      item.className = 'nutr-suggest-empty';
+      item.textContent = text;
+    } else {
+      item.innerHTML = text;
+    }
+    listEl.appendChild(item);
   });
 });
 
@@ -3491,7 +3949,7 @@ db.auth.onAuthStateChange((event, session) => {
   } else if (!session) {
     appInitialized = false;
     householdId = null;
-    ['mealplan', 'recipes', 'pantry', 'shopstate', 'weekstartday', 'nutrition'].forEach(k => localStorage.removeItem(k));
+    ['mealplan', 'recipes', 'pantry', 'shopstate', 'weekstartday', 'nutrition', 'nutritionGoals'].forEach(k => localStorage.removeItem(k));
     weekStartDay = '';
     const sel = document.getElementById('week-start-select');
     if (sel) sel.value = '';
