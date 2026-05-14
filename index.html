@@ -1025,6 +1025,40 @@ h2 {
   display: block;
 }
 
+.nutr-db-match {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 0 6px 2px;
+  font-size: 11px;
+  color: #888;
+}
+
+.nutr-db-match-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.nutr-db-match-btn {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 11px;
+  color: #1a1a1a;
+  background: rgba(0,0,0,0.05);
+  border: 0.5px solid rgba(0,0,0,0.15);
+  border-radius: 5px;
+  padding: 2px 8px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.nutr-db-match-btn:hover {
+  background: rgba(0,0,0,0.1);
+}
+
 .nutr-cal-input {
   font-family: Helvetica, Arial, sans-serif;
   font-size: 14px;
@@ -3153,11 +3187,16 @@ function calcIngredientNutrients(qty, unit, name) {
 
 // Find the best matching entry in NUTRITION_DB for a given ingredient name.
 function lookupNutritionDB(name) {
+  const match = lookupNutritionDBMatch(name);
+  return match ? match.entry : null;
+}
+
+// Like lookupNutritionDB but also returns the matched key from NUTRITION_DB.
+function lookupNutritionDBMatch(name) {
   const norm = normalizeName(name.toLowerCase().trim());
-  if (NUTRITION_DB[norm]) return NUTRITION_DB[norm];
-  // Try substring match: ingredient name contains a DB key, or DB key contains the normalised name
+  if (NUTRITION_DB[norm]) return { key: norm, entry: NUTRITION_DB[norm] };
   const found = Object.keys(NUTRITION_DB).find(k => norm.includes(k) || k.includes(norm));
-  return found ? NUTRITION_DB[found] : null;
+  return found ? { key: found, entry: NUTRITION_DB[found] } : null;
 }
 
 // Convert a quantity + unit to grams using NUTRITION_DB density for liquids,
@@ -3343,7 +3382,8 @@ function renderNutritionIngredients() {
       const { nameEl, variantsList } = makeNameEl(displayName, variants);
 
       // Pre-populate inputs with NUTRITION_DB suggestions if available
-      const dbEntry = lookupNutritionDB(name);
+      const dbMatch = lookupNutritionDBMatch(name);
+      const dbEntry = dbMatch ? dbMatch.entry : null;
       const dbSuggestion = dbEntry ? builtinToEntry(dbEntry, refUnit, name) : null;
 
       const inputs = {};
@@ -3385,6 +3425,29 @@ function renderNutritionIngredients() {
       row.append(nameEl, ...FIELDS.map(f => inputs[f.key]), perEl);
       group.appendChild(row);
       if (variantsList) group.appendChild(variantsList);
+
+      if (dbSuggestion && dbMatch) {
+        const matchRow = document.createElement('div');
+        matchRow.className = 'nutr-db-match';
+        const label = document.createElement('span');
+        label.className = 'nutr-db-match-label';
+        label.textContent = `Matched “${cap(dbMatch.key)}” in built-in data`;
+        const useBtn = document.createElement('button');
+        useBtn.className = 'nutr-db-match-btn';
+        useBtn.textContent = `Pre-fill from “${cap(dbMatch.key)}”`;
+        useBtn.title = `Populate macros for this ingredient from the built-in entry “${dbMatch.key}”`;
+        useBtn.addEventListener('click', () => {
+          const entry = builtinToEntry(dbEntry, refUnit, name);
+          if (entry) {
+            nutritionData[name] = entry;
+            persist('nutrition', nutritionData);
+            renderNutritionIngredients();
+          }
+        });
+        matchRow.append(label, useBtn);
+        group.appendChild(matchRow);
+      }
+
       list.appendChild(group);
     });
   }
