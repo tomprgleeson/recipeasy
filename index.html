@@ -548,6 +548,17 @@ h2 {
   color: #bbb;
 }
 
+.recipe-card-macros {
+  padding: 0.25rem 0.75rem 0.4rem;
+  font-size: 12px;
+  color: #666;
+  background: #fafaf9;
+  border-top: 0.5px solid rgba(0,0,0,0.06);
+}
+.recipe-card-macros.partial {
+  color: #b0b0b0;
+}
+
 .recipe-card-body {
   padding: 0.5rem 0.75rem;
   font-size: 13px;
@@ -2509,11 +2520,24 @@ function renderRecipes() {
       openDeleteRecipeConfirm(r);
     });
     hdr.append(nameEl, servesEl, editBtn, delBtn);
+    const macrosEl = document.createElement('div');
+    macrosEl.className = 'recipe-card-macros';
+    const n = getRecipeNutritionPerServing(r);
+    if (n.partial) {
+      macrosEl.classList.add('partial');
+      macrosEl.textContent = 'Macros incomplete — some ingredients missing data';
+    } else {
+      const cal = Math.round(n.cal);
+      const p = Math.round(n.protein * 10) / 10;
+      const f = Math.round(n.fat * 10) / 10;
+      const c = Math.round(n.carbs * 10) / 10;
+      macrosEl.textContent = `${cal.toLocaleString()} kcal · ${p}g P · ${f}g F · ${c}g C per serving`;
+    }
     const body = document.createElement('div');
     body.className = 'recipe-card-body';
     body.textContent = r.ingredients;
     hdr.addEventListener('click', () => card.classList.toggle('open'));
-    card.append(hdr, body);
+    card.append(hdr, macrosEl, body);
     el.appendChild(card);
   });
 }
